@@ -149,13 +149,29 @@ export async function syncGitHubActivity(userId: string): Promise<void> {
               const branchName = ref.replace('refs/heads/', '');
               const head = event.payload.head as string;
               
+              let commitMessage = branchName ? `Pushed to ${branchName}` : 'Pushed to repository';
+              
+              if (head) {
+                try {
+                  const commitRes = await githubFetch(`${GITHUB_API}/repos/${repoName}/commits/${head}`, token);
+                  if (commitRes.ok) {
+                    const commitData = await commitRes.json();
+                    if (commitData.commit?.message) {
+                      commitMessage = commitData.commit.message.split('\n')[0].slice(0, 500);
+                    }
+                  }
+                } catch (e) {
+                  // ignore error and use fallback
+                }
+              }
+              
               eventsToUpsert.push({
                 userId,
                 source: 'github',
                 type: 'commit',
                 externalId: event.id,
                 repo: repoName,
-                title: branchName ? `Pushed to ${branchName}` : 'Pushed to repository',
+                title: commitMessage,
                 url: head ? `https://github.com/${repoName}/commit/${head}` : `https://github.com/${repoName}`,
                 occurredAt,
                 rawPayload: { event: event.type, payload: event.payload, eventId: event.id },

@@ -1,4 +1,4 @@
-import { prisma } from '@autoeod/db';
+import { prisma } from './apps/api/node_modules/@autoeod/db';
 
 async function main() {
   const reports = await prisma.report.findMany({

@@ -13,8 +13,12 @@ let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!_openai) {
     const apiKey = process.env.OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_BASE_URL;
     if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-    _openai = new OpenAI({ apiKey });
+    _openai = new OpenAI({ 
+      apiKey,
+      ...(baseURL ? { baseURL } : {})
+    });
   }
   return _openai;
 }
@@ -183,8 +187,8 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
   } catch (firstErr) {
     logger.warn({ firstErr, userId, reportDate }, 'First OpenAI attempt failed, retrying with fallback model');
     try {
-      // Try gpt-4o-mini as fallback
-      usedModel = 'gpt-4o-mini';
+      // Try fallback model if provided, otherwise retry the same model
+      usedModel = process.env.OPENAI_FALLBACK_MODEL || PREFERRED_MODEL;
       reportOutput = await callOpenAI(prompt, usedModel);
     } catch (secondErr) {
       logger.error({ secondErr, userId, reportDate }, 'Both OpenAI attempts failed, marking report as failed');
