@@ -1,0 +1,144 @@
+// schema.prisma — AutoEOD Phase 1
+// Source of truth per PRD §5
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  settings          UserSettings?
+  githubIntegration GithubIntegration?
+  activityEvents    ActivityEvent[]
+  reports           Report[]
+  notifications     Notification[]
+  extensionTokens   ExtensionToken[]
+}
+
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  timezone       String  @default("Asia/Kolkata") // IANA tz name
+  workStartTime  String  @default("09:00") // 24h "HH:mm", local to timezone
+  workEndTime    String  @default("18:00")
+  reportTime     String  @default("17:50") // when daily report generation fires
+  autoGenerate   Boolean @default(true)
+  managerEmail   String?
+  ccEmails       String? // comma-separated
+  reportTemplate String  @default("professional") // "professional" | "short" | "detailed"
+  reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
+  chatgptCaptureContent Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+model GithubIntegration {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  githubUserId   String
+  githubUsername String
+  accessTokenEnc String // AES-256-GCM encrypted
+  scopes         String // space-separated scopes granted
+  connectedAt    DateTime  @default(now())
+  lastSyncedAt   DateTime?
+  lastSyncCursor String? // ISO timestamp of last successfully fetched event
+  needsReconnect Boolean   @default(false)
+
+  @@index([userId])
+}
+
+// Normalized record of one unit of GitHub activity.
+// source-tagged so Phase 2 (Jira, etc.) adds rows without schema change.
+model ActivityEvent {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source     String // "github" (only in Phase 1)
+  type       String // "commit" | "pull_request" | "pr_review" | "issue" | "issue_comment"
+  externalId String // GitHub's id/sha for de-duplication
+  repo       String // e.g. "karan/noctune"
+  title      String // commit message / PR title / issue title
+  url        String // link back to GitHub
+  occurredAt DateTime // when the event actually happened on GitHub
+  rawPayload Json // full API response for audit/debug/reprocessing
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, source, externalId])
+  @@index([userId, occurredAt])
+}
+
+model Report {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reportDate String // "YYYY-MM-DD", local to user's timezone
+  status     String @default("draft") // "draft" | "approved" | "sent" | "failed"
+
+  summary         String? @db.Text
+  completedItems  Json? // string[]
+  inProgressItems Json? // string[]
+  blockers        String? @db.Text
+  tomorrowPlan    String? @db.Text
+
+  rawEventIds  Json // string[] of ActivityEvent.id used to generate this report
+  aiModel      String? // model name used, for audit
+  generatedAt  DateTime?
+  sentAt       DateTime?
+  sentTo       String?
+  errorMessage String? // populated if status = "failed"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, reportDate])
+  @@index([userId, reportDate])
+}
+
+// In-app notifications (Phase 1 minimum: unread flag per report)
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      String // "report_ready" | "report_failed" | "github_disconnected"
+  title     String
+  message   String
+  reportId  String? // link to report if applicable
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+// Extension auth tokens
+model ExtensionToken {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash   String   @unique
+  label       String   @default("Browser Extension")
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+
+  @@index([userId])
+}

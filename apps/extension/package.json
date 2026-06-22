@@ -1,0 +1,6 @@
+{
+  "name": "@autoeod/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AutoEOD ChatGPT Activity Capture Extension"
+}

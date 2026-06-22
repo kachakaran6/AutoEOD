@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 224 71% 5%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 250 100% 69%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 16% 57%;
+
+    --accent: 222 47% 14%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 250 100% 69%;
+
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent;
+  }
+
+  /* Stat card hover */
+  .stat-card {
+    @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/5;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--accent)) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+}
