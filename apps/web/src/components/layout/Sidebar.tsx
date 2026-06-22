@@ -18,12 +18,12 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-60 flex-col border-r border-border bg-card/50 backdrop-blur-sm">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 ring-1 ring-primary/30">
+      <div className="flex h-14 items-center gap-2.5 px-5 border-b border-border">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-border">
           <Zap className="h-4 w-4 text-primary" />
         </div>
         <div>
-          <span className="font-semibold text-sm gradient-text">AutoEOD</span>
+          <span className="font-semibold text-sm">AutoEOD</span>
           <p className="text-[10px] text-muted-foreground leading-none mt-0.5">AI Report Generator</p>
         </div>
       </div>

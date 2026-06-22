@@ -157,10 +157,10 @@ export async function syncGitHubActivity(userId: string): Promise<void> {
               type: 'pull_request',
               externalId: `pr-${pr.id}-${action}`,
               repo: repoName,
-              title: `[${action.toUpperCase()}] ${pr.title}`,
-              url: pr.html_url,
+              title: `[${action.toUpperCase()}] ${pr.title || `PR #${pr.number}`}`,
+              url: pr.html_url || `https://github.com/${repoName}/pull/${pr.number}`,
               occurredAt,
-              rawPayload: { event: event.type, action, pr: { id: pr.id, number: pr.number, title: pr.title } },
+              rawPayload: { event: event.type, action, pr: { id: pr.id, number: pr.number, title: pr.title || '' } },
             });
             break;
           }

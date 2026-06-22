@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
@@ -24,45 +25,47 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public auth routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+    <ThemeProvider defaultTheme="system" storageKey="autoeod-theme">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public auth routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
 
-            {/* Protected app routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/timeline" element={<TimelinePage />} />
-              <Route path="/integrations" element={<IntegrationsPage />} />
-              <Route path="/reports/:date" element={<ReportPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              {/* Protected app routes */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/timeline" element={<TimelinePage />} />
+                <Route path="/integrations" element={<IntegrationsPage />} />
+                <Route path="/reports/:date" element={<ReportPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
 
-        <Toaster
-          position="bottom-right"
-          richColors
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: 'hsl(224 71% 6%)',
-              border: '1px solid hsl(216 34% 17%)',
-              color: 'hsl(213 31% 91%)',
-            },
-          }}
-        />
-      </AuthProvider>
-    </QueryClientProvider>
+          <Toaster
+            position="bottom-right"
+            richColors
+            theme="system"
+            toastOptions={{
+              style: {
+                background: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                color: 'hsl(var(--foreground))',
+              },
+            }}
+          />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   )
 }
