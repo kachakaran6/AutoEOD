@@ -127,6 +127,7 @@ export const reports = {
 export const integrations = {
   get: () => apiRequest<IntegrationsData>('/integrations'),
   disconnectGitHub: () => apiRequest<void>('/integrations/github', { method: 'DELETE' }),
+  syncGitHub: () => apiRequest<{ message: string }>('/integrations/github/sync', { method: 'POST' }),
 };
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -282,5 +283,5 @@ export interface ExtensionToken {
 export const extensionTokens = {
   list: () => apiRequest<ExtensionToken[]>('/extension-tokens'),
   create: (label: string) => apiRequest<ExtensionToken>('/extension-tokens', { method: 'POST', body: JSON.stringify({ label }) }),
-  revoke: (id: string) => apiRequest<{ message: string }>(/extension-tokens/ + id, { method: 'DELETE' })
+  revoke: (id: string) => apiRequest<{ message: string }>(`/extension-tokens/${id}`, { method: 'DELETE' })
 };

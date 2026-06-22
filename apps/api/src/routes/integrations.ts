@@ -164,6 +164,22 @@ integrationsRouter.delete('/github', requireAuth, async (req: Request, res: Resp
   res.json({ message: 'GitHub disconnected' });
 });
 
+// ── POST /api/integrations/github/sync ────────────────────────────────────────
+integrationsRouter.post('/github/sync', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const integration = await prisma.githubIntegration.findUnique({ where: { userId } });
+  
+  if (!integration) {
+    res.status(404).json({ error: 'GitHub integration not found' });
+    return;
+  }
+
+  // Trigger immediate sync
+  await githubSyncQueue.add('sync-single', { userId }, { jobId: `sync-single-${userId}-${Date.now()}` });
+  logger.info({ userId }, 'Manual GitHub sync triggered');
+  res.json({ message: 'Sync queued successfully' });
+});
+
 // ── GET /api/integrations ─────────────────────────────────────────────────────
 // Returns current integration status
 integrationsRouter.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {

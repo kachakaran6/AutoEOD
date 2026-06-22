@@ -35,6 +35,19 @@ export function IntegrationsPage() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const syncMutation = useMutation({
+    mutationFn: integrations.syncGitHub,
+    onSuccess: () => {
+      toast.success('Sync queued successfully')
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['integrations'] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+        queryClient.invalidateQueries({ queryKey: ['activity'] })
+      }, 2000)
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
   const { data: tokens, isLoading: isLoadingTokens } = useQuery({
     queryKey: ['extensionTokens'],
     queryFn: extensionTokens.list,
@@ -142,6 +155,23 @@ export function IntegrationsPage() {
                       Reconnect
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      toast.info('Syncing...', { duration: 2000 })
+                      syncMutation.mutate()
+                    }}
+                    disabled={syncMutation.isPending || disconnectMutation.isPending}
+                    id="btn-sync-github"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Sync Now
+                  </Button>
                   <Button
                     variant="destructive"
                     size="sm"

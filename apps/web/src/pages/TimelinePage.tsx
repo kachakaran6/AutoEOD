@@ -1,6 +1,6 @@
 // apps/web/src/pages/TimelinePage.tsx
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
   GitCommitHorizontal,
@@ -12,13 +12,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
-import { activity } from '@/lib/api'
+import { activity, integrations } from '@/lib/api'
 import type { ActivityEvent } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 
 function getEventIcon(type: string) {
   switch (type) {
@@ -46,6 +49,18 @@ function getEventTypeLabel(type: string) {
 
 export function TimelinePage() {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const queryClient = useQueryClient()
+
+  const syncMutation = useMutation({
+    mutationFn: integrations.syncGitHub,
+    onSuccess: () => {
+      toast.success('Sync queued successfully')
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['activity'] })
+      }, 2000)
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['activity', date],
@@ -93,6 +108,24 @@ export function TimelinePage() {
             aria-label="Next day"
           >
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-4 gap-2"
+            onClick={() => {
+              toast.info('Syncing...', { duration: 2000 })
+              syncMutation.mutate()
+            }}
+            disabled={syncMutation.isPending}
+            id="btn-sync-now"
+          >
+            {syncMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Sync Now
           </Button>
         </div>
       </div>

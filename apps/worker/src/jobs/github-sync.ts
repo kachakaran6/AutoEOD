@@ -127,19 +127,38 @@ export async function syncGitHubActivity(userId: string): Promise<void> {
 
         switch (event.type) {
           case 'PushEvent': {
-            // One ActivityEvent per commit in the push
             const commits = (event.payload.commits as GitHubCommit[]) || [];
-            for (const commit of commits) {
+            if (commits.length > 0) {
+              // One ActivityEvent per commit in the push
+              for (const commit of commits) {
+                eventsToUpsert.push({
+                  userId,
+                  source: 'github',
+                  type: 'commit',
+                  externalId: commit.sha,
+                  repo: repoName,
+                  title: commit.message.split('\n')[0].slice(0, 500), // first line, truncated
+                  url: `https://github.com/${repoName}/commit/${commit.sha}`,
+                  occurredAt,
+                  rawPayload: { event: event.type, commit, eventId: event.id },
+                });
+              }
+            } else {
+              // Fallback: create a generic push event if commits array is empty/stripped
+              const ref = (event.payload.ref as string) || '';
+              const branchName = ref.replace('refs/heads/', '');
+              const head = event.payload.head as string;
+              
               eventsToUpsert.push({
                 userId,
                 source: 'github',
                 type: 'commit',
-                externalId: commit.sha,
+                externalId: event.id,
                 repo: repoName,
-                title: commit.message.split('\n')[0].slice(0, 500), // first line, truncated
-                url: `https://github.com/${repoName}/commit/${commit.sha}`,
+                title: branchName ? `Pushed to ${branchName}` : 'Pushed to repository',
+                url: head ? `https://github.com/${repoName}/commit/${head}` : `https://github.com/${repoName}`,
                 occurredAt,
-                rawPayload: { event: event.type, commit, eventId: event.id },
+                rawPayload: { event: event.type, payload: event.payload, eventId: event.id },
               });
             }
             break;
