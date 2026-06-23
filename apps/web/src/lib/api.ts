@@ -1,7 +1,7 @@
 // apps/web/src/lib/api.ts
 // API client — all requests go through here
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
 
 let accessToken: string | null = null;
 
@@ -190,6 +190,7 @@ export interface ActivityEvent {
   url: string;
   occurredAt: string;
   source: string;
+  rawPayload?: any;
 }
 
 export interface ActivityResponse {

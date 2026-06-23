@@ -155,7 +155,7 @@ export async function syncGitHubActivity(userId: string): Promise<void> {
                 try {
                   const commitRes = await githubFetch(`${GITHUB_API}/repos/${repoName}/commits/${head}`, token);
                   if (commitRes.ok) {
-                    const commitData = await commitRes.json();
+                    const commitData = await commitRes.json() as any;
                     if (commitData.commit?.message) {
                       commitMessage = commitData.commit.message.split('\n')[0].slice(0, 500);
                     }
