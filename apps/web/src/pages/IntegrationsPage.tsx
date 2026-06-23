@@ -237,18 +237,56 @@ export function IntegrationsPage() {
               </div>
             )}
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Load the unpacked extension from `apps/extension` into your browser.
+            <div className="space-y-6">
+              <div className="bg-muted/30 border border-border p-4 rounded-lg">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">1</span>
+                  Download the Extension
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Download the latest <code className="text-xs bg-black/50 px-1 py-0.5 rounded">autoeod-extension.zip</code> file from our GitHub Releases page and extract it to a folder on your computer.
                 </p>
-                <Button 
-                  onClick={() => generateTokenMutation.mutate('Browser Extension')}
-                  disabled={generateTokenMutation.isPending}
-                >
-                  {generateTokenMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Token
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://github.com/kachakaran6/AutoEOD/releases/latest" target="_blank" rel="noopener noreferrer">
+                    <Github className="w-4 h-4 mr-2" />
+                    Go to GitHub Releases
+                  </a>
                 </Button>
+              </div>
+
+              <div className="bg-muted/30 border border-border p-4 rounded-lg">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
+                  Install in Chrome
+                </h4>
+                <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1">
+                  <li>Open <code className="text-xs bg-black/50 px-1 py-0.5 rounded">chrome://extensions</code> in your browser.</li>
+                  <li>Enable <strong>Developer mode</strong> in the top right corner.</li>
+                  <li>Click <strong>Load unpacked</strong> in the top left.</li>
+                  <li>Select the extracted folder you downloaded in Step 1.</li>
+                </ol>
+              </div>
+
+              <div className="bg-muted/30 border border-border p-4 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">3</span>
+                      Connect Account
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Generate a secure token below, click the AutoEOD icon in your Chrome toolbar, and paste the token to start syncing.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => generateTokenMutation.mutate('Browser Extension')}
+                    disabled={generateTokenMutation.isPending}
+                    className="shrink-0 ml-4"
+                  >
+                    {generateTokenMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate Token
+                  </Button>
+                </div>
               </div>
 
               {tokens && tokens.length > 0 && (

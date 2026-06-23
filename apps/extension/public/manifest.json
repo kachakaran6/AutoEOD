@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "AutoEOD \u2014 ChatGPT Activity Capture",
+  "version": "1.0.0",
+  "description": "Captures ChatGPT conversation activity for your AutoEOD daily report.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "https://chat.gpt.com/*",
+    "https://chatgpt.com/*",
+    "http://localhost:3001/*",
+    "https://autoeod-production.up.railway.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.gpt.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AutoEOD"
+  }
+}
