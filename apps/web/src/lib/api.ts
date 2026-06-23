@@ -134,7 +134,11 @@ export const integrations = {
 export const settings = {
   get: () => apiRequest<UserSettings>('/settings'),
   update: (data: Partial<UserSettings>) =>
-    apiRequest<UserSettings>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
+    apiRequest<UserSettings>('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  testSmtp: () => apiRequest<{ message: string }>('/settings/test-smtp', { method: 'POST' }),
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -261,6 +265,11 @@ export interface UserSettings {
   reportTemplate: string;
   reportLanguage: string;
   chatgptCaptureContent?: boolean;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpConfigured?: boolean;
 }
 
 export interface Notification {

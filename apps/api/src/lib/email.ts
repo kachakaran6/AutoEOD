@@ -1,19 +1,7 @@
 // apps/api/src/lib/email.ts
-// Resend email integration
+// Nodemailer email integration
 
-import { Resend } from 'resend';
 import type { Report } from '@autoeod/db';
-
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) throw new Error('RESEND_API_KEY not set');
-    resend = new Resend(apiKey);
-  }
-  return resend;
-}
 
 interface SendReportOptions {
   report: Report;
@@ -89,43 +77,44 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+import nodemailer from 'nodemailer';
+import { prisma } from '@autoeod/db';
+import { decrypt } from './crypto';
+
 export async function sendReportEmail({
   report,
   senderName,
   managerEmail,
   ccEmails,
 }: SendReportOptions): Promise<void> {
-  const client = getResend();
-  const from = process.env.EMAIL_FROM || `AutoEOD <onboarding@resend.dev>`;
-  const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : [];
+  const settings = await prisma.userSettings.findUnique({ where: { userId: report.userId } });
+  
+  if (!settings || !settings.smtpHost || !settings.smtpPort || !settings.smtpUser || !settings.smtpPassEnc) {
+    throw new Error('SMTP credentials are not configured. Please connect your email in settings.');
+  }
 
+  const pass = decrypt(settings.smtpPassEnc);
+  
+  const transporter = nodemailer.createTransport({
+    host: settings.smtpHost,
+    port: settings.smtpPort,
+    secure: settings.smtpPort === 465,
+    auth: {
+      user: settings.smtpUser,
+      pass,
+    },
+  });
+
+  const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : [];
   const html = renderReportHtml(report, senderName);
 
-  const { error } = await client.emails.send({
-    from,
-    to: [managerEmail],
+  await transporter.sendMail({
+    from: `"${senderName}" <${settings.smtpUser}>`,
+    to: managerEmail,
     cc: cc.length ? cc : undefined,
     subject: `EOD Report — ${report.reportDate} — ${senderName}`,
     html,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
 
-export async function sendReminderEmail(to: string, reportDate: string, reportUrl: string): Promise<void> {
-  const client = getResend();
-  const from = process.env.EMAIL_FROM || `AutoEOD <onboarding@resend.dev>`;
 
-  await client.emails.send({
-    from,
-    to: [to],
-    subject: `Your EOD report for ${reportDate} is ready`,
-    html: `
-      <p>Your daily EOD report for <strong>${reportDate}</strong> has been generated and is ready for your review.</p>
-      <p><a href="${reportUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:500;">Review & Send Report</a></p>
-      <p style="font-size:12px;color:#999;">Sent by AutoEOD</p>
-    `,
-  });
-}

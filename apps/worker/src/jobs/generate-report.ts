@@ -266,9 +266,9 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
   // Stretch goal: send email reminder
   try {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-    if (user && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 're_your-resend-api-key-here') {
+    if (user) {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      await sendReminderEmail(user.email, reportDate, `${frontendUrl}/reports/${reportDate}`);
+      await sendReminderEmail(userId, user.email, reportDate, `${frontendUrl}/reports/${reportDate}`);
       logger.info({ userId, reportDate }, 'Email reminder sent');
     }
   } catch (emailErr) {

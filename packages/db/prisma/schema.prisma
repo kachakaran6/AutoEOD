@@ -42,6 +42,11 @@ model UserSettings {
   reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
   chatgptCaptureContent Boolean @default(false)
 
+  smtpHost     String?
+  smtpPort     Int?
+  smtpUser     String?
+  smtpPassEnc  String? // Encrypted SMTP password
+
   updatedAt DateTime @updatedAt
 }
 

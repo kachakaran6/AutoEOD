@@ -1,16 +1,25 @@
 // apps/web/src/pages/SettingsPage.tsx
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Loader2, Info } from 'lucide-react'
+import { Save, Loader2, Info, CheckCircle2, XCircle } from 'lucide-react'
 import { settings as settingsApi } from '@/lib/api'
 import type { UserSettings } from '@/lib/api'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { toast } from 'sonner'
 
 const TIMEZONES = [
@@ -36,6 +45,7 @@ export function SettingsPage() {
 
   const [form, setForm] = useState<Partial<UserSettings>>({})
   const [isDirty, setIsDirty] = useState(false)
+  const [isSmtpModalOpen, setIsSmtpModalOpen] = useState(false)
 
   useEffect(() => {
     if (data) {
@@ -56,6 +66,12 @@ export function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       setIsDirty(false)
     },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const testSmtpMutation = useMutation({
+    mutationFn: () => settingsApi.testSmtp(),
+    onSuccess: (res) => toast.success(res.message),
     onError: (err: Error) => toast.error(err.message),
   })
 
@@ -194,6 +210,121 @@ export function SettingsPage() {
             />
             <p className="text-xs text-muted-foreground">Comma-separated list of email addresses to CC</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Connection (SMTP) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span>Email Connection (SMTP)</span>
+            {data?.smtpConfigured ? (
+              <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                Configured
+              </span>
+            ) : (
+              <span className="flex items-center text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Not Configured
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Connect your own email account to send EOD reports. Use an App Password if using Gmail.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {data?.smtpConfigured ? 'Your email is connected and ready to send reports.' : 'Configure your SMTP settings to enable email delivery.'}
+          </p>
+          <Dialog open={isSmtpModalOpen} onOpenChange={setIsSmtpModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                {data?.smtpConfigured ? 'Update Connection' : 'Connect Email Account'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Connect Email Account</DialogTitle>
+                <DialogDescription>
+                  Enter your SMTP credentials to send EOD reports directly from your email.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="setting-smtp-host">SMTP Host</Label>
+                    <Input
+                      id="setting-smtp-host"
+                      type="text"
+                      placeholder="smtp.gmail.com"
+                      value={form.smtpHost || ''}
+                      onChange={(e) => updateField('smtpHost', e.target.value || null)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setting-smtp-port">SMTP Port</Label>
+                    <Input
+                      id="setting-smtp-port"
+                      type="number"
+                      placeholder="465"
+                      value={form.smtpPort || ''}
+                      onChange={(e) => updateField('smtpPort', e.target.value ? parseInt(e.target.value) : null)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="setting-smtp-user">Email Address (Username)</Label>
+                  <Input
+                    id="setting-smtp-user"
+                    type="email"
+                    placeholder="you@gmail.com"
+                    value={form.smtpUser || ''}
+                    onChange={(e) => updateField('smtpUser', e.target.value || null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="setting-smtp-pass">Password / App Password</Label>
+                  <Input
+                    id="setting-smtp-pass"
+                    type="password"
+                    placeholder={data?.smtpConfigured ? '•••••••• (Stored Securely)' : 'Enter password'}
+                    value={form.smtpPass || ''}
+                    onChange={(e) => updateField('smtpPass', e.target.value || null)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    For Gmail, use a <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google App Password</a>. Never use your real password.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => testSmtpMutation.mutate()}
+                    disabled={testSmtpMutation.isPending || isDirty}
+                  >
+                    {testSmtpMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Test Connection
+                  </Button>
+                  {isDirty && <span className="text-xs text-amber-600">Save first.</span>}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => setIsSmtpModalOpen(false)}>Cancel</Button>
+                  <Button 
+                    onClick={() => {
+                      saveMutation.mutate();
+                      setIsSmtpModalOpen(false);
+                    }} 
+                    disabled={!isDirty || saveMutation.isPending}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
 
