@@ -13,6 +13,23 @@ function getKey(): Buffer {
   return Buffer.from(hex, 'hex');
 }
 
+/**
+ * Encrypt a plaintext string.
+ * Returns a base64-encoded string: iv + authTag + ciphertext
+ */
+export function encrypt(plaintext: string): string {
+  const key = getKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
+
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  // Format: iv (12) + authTag (16) + ciphertext
+  const combined = Buffer.concat([iv, authTag, encrypted]);
+  return combined.toString('base64');
+}
+
 export function decrypt(encryptedBase64: string): string {
   const key = getKey();
   const combined = Buffer.from(encryptedBase64, 'base64');
