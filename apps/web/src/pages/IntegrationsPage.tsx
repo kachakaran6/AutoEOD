@@ -86,6 +86,7 @@ export function IntegrationsPage() {
   }
 
   const github = data?.github
+  const activeTokens = tokens?.filter(t => !t.revokedAt) || [];
 
   return (
     <div className="space-y-6">
@@ -223,15 +224,22 @@ export function IntegrationsPage() {
           </CardHeader>
           <CardContent>
             {newToken && (
-              <div className="p-4 mb-4 bg-green-900/20 border border-green-500/50 rounded-lg">
-                <p className="text-sm font-semibold mb-2">Save this token now! You won't be able to see it again.</p>
+              <div className="p-4 mb-6 bg-green-900/20 border border-green-500/50 rounded-lg animate-in fade-in slide-in-from-top-2">
+                <h4 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Token Generated Successfully!
+                </h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Click the <strong>AutoEOD puzzle piece icon</strong> in your Chrome toolbar, open the extension, and paste this code to start syncing. You won't be able to see it again!
+                </p>
                 <div className="flex gap-2">
-                  <input readOnly value={newToken} className="flex-1 bg-black/50 p-2 rounded text-sm font-mono" />
-                  <Button size="icon" onClick={() => {
+                  <input readOnly value={newToken} className="flex-1 bg-black/50 px-3 py-2 border border-green-500/30 rounded text-sm font-mono text-green-300 outline-none" />
+                  <Button onClick={() => {
                     navigator.clipboard.writeText(newToken);
                     toast.success('Copied to clipboard');
-                  }}>
-                    <Copy className="h-4 w-4" />
+                  }} className="bg-green-600 hover:bg-green-700 text-white">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
                   </Button>
                 </div>
               </div>
@@ -289,16 +297,16 @@ export function IntegrationsPage() {
                 </div>
               </div>
 
-              {tokens && tokens.length > 0 && (
+              {activeTokens.length > 0 && (
                 <div className="space-y-2 mt-4">
                   <p className="text-sm font-semibold">Active Tokens</p>
-                  {tokens.map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  {activeTokens.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
                       <div className="space-y-1">
-                        <p className="text-sm">{t.label}</p>
+                        <p className="text-sm font-medium">{t.label}</p>
                         <p className="text-xs text-muted-foreground">
                           Created {formatDistanceToNow(new Date(t.createdAt))} ago
-                          {t.lastUsedAt && ` Â· Last used ${formatDistanceToNow(new Date(t.lastUsedAt))} ago`}
+                          {t.lastUsedAt && ` · Last used ${formatDistanceToNow(new Date(t.lastUsedAt))} ago`}
                         </p>
                       </div>
                       <Button
