@@ -139,6 +139,7 @@ export const settings = {
       body: JSON.stringify(data),
     }),
   testSmtp: () => apiRequest<{ message: string }>('/settings/test-smtp', { method: 'POST' }),
+  disconnectEmail: () => apiRequest<{ success: boolean }>('/settings/email-connection', { method: 'DELETE' }),
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -265,11 +266,17 @@ export interface UserSettings {
   reportTemplate: string;
   reportLanguage: string;
   chatgptCaptureContent?: boolean;
-  smtpHost?: string | null;
-  smtpPort?: number | null;
-  smtpUser?: string | null;
-  smtpPass?: string | null;
-  smtpConfigured?: boolean;
+  chatgptCaptureContent?: boolean;
+  emailConnection?: EmailConnection | null;
+}
+
+export interface EmailConnection {
+  provider: 'google' | 'zoho';
+  email: string;
+  name: string | null;
+  avatar: string | null;
+  connectedAt: string;
+  lastUsedAt: string | null;
 }
 
 export interface Notification {

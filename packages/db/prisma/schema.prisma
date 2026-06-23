@@ -24,6 +24,7 @@ model User {
   reports           Report[]
   notifications     Notification[]
   extensionTokens   ExtensionToken[]
+  emailConnection   EmailConnection?
 }
 
 model UserSettings {
@@ -42,12 +43,27 @@ model UserSettings {
   reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
   chatgptCaptureContent Boolean @default(false)
 
-  smtpHost     String?
-  smtpPort     Int?
-  smtpUser     String?
-  smtpPassEnc  String? // Encrypted SMTP password
-
   updatedAt DateTime @updatedAt
+}
+
+model EmailConnection {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  provider        String    // "google" | "zoho"
+  email           String
+  name            String?
+  avatar          String?
+  
+  accessTokenEnc  String
+  refreshTokenEnc String
+  expiresAt       DateTime
+  
+  connectedAt     DateTime  @default(now())
+  lastUsedAt      DateTime?
+
+  @@index([userId])
 }
 
 model GithubIntegration {

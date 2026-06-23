@@ -4,7 +4,8 @@ export async function getApiToken(): Promise<string | null> {
 }
 
 export function getApiEndpoint(): string {
-  // If we're in development, try localhost, else production.
-  // We'll default to the production URL as the safest bet for the distributed extension.
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3001/api/extension/activity';
+  }
   return 'https://autoeod-production.up.railway.app/api/extension/activity';
 }

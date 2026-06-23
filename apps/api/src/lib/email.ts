@@ -77,9 +77,7 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-import nodemailer from 'nodemailer';
-import { prisma } from '@autoeod/db';
-import { decrypt } from './crypto';
+import { EmailProviderService } from './email-provider';
 
 export async function sendReportEmail({
   report,
@@ -87,33 +85,16 @@ export async function sendReportEmail({
   managerEmail,
   ccEmails,
 }: SendReportOptions): Promise<void> {
-  const settings = await prisma.userSettings.findUnique({ where: { userId: report.userId } });
-  
-  if (!settings || !settings.smtpHost || !settings.smtpPort || !settings.smtpUser || !settings.smtpPassEnc) {
-    throw new Error('SMTP credentials are not configured. Please connect your email in settings.');
-  }
-
-  const pass = decrypt(settings.smtpPassEnc);
-  
-  const transporter = nodemailer.createTransport({
-    host: settings.smtpHost,
-    port: settings.smtpPort,
-    secure: settings.smtpPort === 465,
-    auth: {
-      user: settings.smtpUser,
-      pass,
-    },
-  });
-
-  const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : [];
+  const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : undefined;
   const html = renderReportHtml(report, senderName);
 
-  await transporter.sendMail({
-    from: `"${senderName}" <${settings.smtpUser}>`,
+  const emailService = new EmailProviderService(report.userId);
+  await emailService.sendEmail({
     to: managerEmail,
-    cc: cc.length ? cc : undefined,
+    cc,
     subject: `EOD Report — ${report.reportDate} — ${senderName}`,
     html,
+    senderName,
   });
 }
 

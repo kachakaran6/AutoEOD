@@ -9,8 +9,9 @@ import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { logger } from './lib/logger';
 
-// Route imports
 import { authRouter } from './routes/auth';
+import { googleAuthRouter } from './routes/auth/google';
+import { zohoAuthRouter } from './routes/auth/zoho';
 import { integrationsRouter } from './routes/integrations';
 import { activityRouter } from './routes/activity';
 import { dashboardRouter } from './routes/dashboard';
@@ -66,6 +67,8 @@ const authLimiter = rateLimit({
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.use('/api/auth/google', authLimiter, googleAuthRouter);
+app.use('/api/auth/zoho', authLimiter, zohoAuthRouter);
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/integrations', integrationsRouter);
 app.use('/api/activity', activityRouter);

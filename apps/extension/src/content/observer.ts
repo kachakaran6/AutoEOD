@@ -13,8 +13,6 @@ export function observeAndSend() {
   const modelName = getModelName();
   const workspace = getWorkspace();
 
-  if (messages.length === 0) return;
-
   const payload = {
     externalId: id,
     title,
