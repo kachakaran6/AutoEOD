@@ -81,7 +81,8 @@ export function IntegrationsPage() {
       return
     }
     // Pass the token as a query param since browser redirects can't set headers
-    window.location.href = `/api/integrations/github/connect?token=${encodeURIComponent(tok)}`
+    const baseUrl = (import.meta as any).env.VITE_API_URL || '/api';
+    window.location.href = `${baseUrl}/integrations/github/connect?token=${encodeURIComponent(tok)}`
   }
 
   const github = data?.github
