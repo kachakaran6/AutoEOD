@@ -10,7 +10,7 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:worker": "npm run dev --workspace=apps/worker",
     "dev:web": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "postinstall": "npm run db:generate",
     "start": "npm run start --workspace=apps/api",
     "start:worker": "npm run start --workspace=apps/worker",
