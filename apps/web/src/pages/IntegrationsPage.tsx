@@ -223,28 +223,6 @@ export function IntegrationsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {newToken && (
-              <div className="p-4 mb-6 bg-green-900/20 border border-green-500/50 rounded-lg animate-in fade-in slide-in-from-top-2">
-                <h4 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Token Generated Successfully!
-                </h4>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Click the <strong>AutoEOD puzzle piece icon</strong> in your Chrome toolbar, open the extension, and paste this code to start syncing. You won't be able to see it again!
-                </p>
-                <div className="flex gap-2">
-                  <input readOnly value={newToken} className="flex-1 bg-black/50 px-3 py-2 border border-green-500/30 rounded text-sm font-mono text-green-300 outline-none" />
-                  <Button onClick={() => {
-                    navigator.clipboard.writeText(newToken);
-                    toast.success('Copied to clipboard');
-                  }} className="bg-green-600 hover:bg-green-700 text-white">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
-                </div>
-              </div>
-            )}
-
             <div className="space-y-6">
               <div className="bg-muted/30 border border-border p-4 rounded-lg">
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
@@ -252,7 +230,7 @@ export function IntegrationsPage() {
                   Download the Extension
                 </h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Download the latest <code className="text-xs bg-black/50 px-1 py-0.5 rounded">autoeod-extension.zip</code> file from our GitHub Releases page and extract it to a folder on your computer.
+                  Download the latest <code className="text-xs bg-muted border border-border px-1 py-0.5 rounded text-foreground">autoeod-extension.zip</code> file from our GitHub Releases page and extract it to a folder on your computer.
                 </p>
                 <Button variant="outline" size="sm" asChild>
                   <a href="https://github.com/kachakaran6/AutoEOD/releases/download/v1/autoeod-extension.zip" target="_blank" rel="noopener noreferrer">
@@ -269,7 +247,7 @@ export function IntegrationsPage() {
                 </h4>
                 <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1.5">
                   <li><strong>Extract the .zip file:</strong> Right-click the downloaded file and select "Extract All..." to a folder you won't delete.</li>
-                  <li><strong>Open Chrome Extensions:</strong> In Chrome, type <code className="text-xs bg-black/50 px-1 py-0.5 rounded text-white">chrome://extensions</code> in your address bar and hit enter.</li>
+                  <li><strong>Open Chrome Extensions:</strong> In Chrome, type <code className="text-xs bg-muted border border-border px-1 py-0.5 rounded text-foreground">chrome://extensions</code> in your address bar and hit enter.</li>
                   <li><strong>Enable Developer Mode:</strong> Toggle the switch in the top right corner.</li>
                   <li><strong>Load the Extension:</strong> Click the "Load unpacked" button in the top left and select the extracted folder from step 1.</li>
                 </ol>
@@ -295,6 +273,28 @@ export function IntegrationsPage() {
                     Generate Token
                   </Button>
                 </div>
+
+                {newToken && (
+                  <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/50 rounded-lg animate-in fade-in slide-in-from-top-2">
+                    <h4 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Token Generated Successfully!
+                    </h4>
+                    <p className="text-xs text-green-600 dark:text-green-300/80 mb-3">
+                      Click the <strong>AutoEOD puzzle piece icon</strong> in your Chrome toolbar, open the extension, and paste this code to start syncing. You won't be able to see it again!
+                    </p>
+                    <div className="flex gap-2">
+                      <input readOnly value={newToken} className="flex-1 bg-white dark:bg-black/50 px-3 py-2 border border-green-200 dark:border-green-500/30 rounded text-sm font-mono text-green-800 dark:text-green-300 outline-none" />
+                      <Button onClick={() => {
+                        navigator.clipboard.writeText(newToken);
+                        toast.success('Copied to clipboard');
+                      }} className="bg-green-600 hover:bg-green-700 text-white shadow-none">
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {activeTokens.length > 0 && (
