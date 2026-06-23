@@ -1,7 +1,7 @@
 // apps/web/src/lib/api.ts
 // API client — all requests go through here
 
-const BASE_URL = '/api'; // proxied to http://localhost:3001 by Vite
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 let accessToken: string | null = null;
 
