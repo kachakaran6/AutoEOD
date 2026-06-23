@@ -14,8 +14,8 @@ const BCRYPT_COST = 12;
 const REFRESH_COOKIE = 'refresh_token';
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: true, // Must be true for SameSite=none
+  sameSite: 'none' as const, // Required for cross-domain frontend/backend
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   path: '/api/auth',
 };

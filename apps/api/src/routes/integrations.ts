@@ -46,8 +46,8 @@ integrationsRouter.get('/github/connect', (req: Request, res: Response, next): v
   // Store state + userId in a signed cookie (expires in 10 min)
   res.cookie(GITHUB_STATE_COOKIE, JSON.stringify({ state, userId: req.userId }), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     maxAge: 10 * 60 * 1000,
     path: '/api/integrations',
   });
