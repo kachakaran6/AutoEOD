@@ -29,7 +29,7 @@ function getConversationTitle() {
 }
 
 function getConversationId() {
-  const match = window.location.pathname.match(/^\/c\/([a-zA-Z0-9-]+)$/);
+  const match = window.location.pathname.match(/\/c\/([a-zA-Z0-9-]+)$/);
   return match ? match[1] : null;
 }
 
@@ -62,10 +62,13 @@ function extractMessages() {
 
 function observeAndSend() {
   const id = getConversationId();
+  console.log('AutoEOD Debug: observeAndSend triggered. Extracted ID:', id);
   if (!id) return; // Not on a specific conversation page
 
   const title = getConversationTitle();
   const messages = extractMessages();
+  
+  console.log(`AutoEOD Debug: Extracted ${messages.length} messages. Title: "${title}"`);
 
   const payload = {
     externalId: id,
@@ -76,8 +79,11 @@ function observeAndSend() {
 
   const payloadString = JSON.stringify(payload);
   if (lastSentPayload !== payloadString) {
+    console.log('AutoEOD Debug: Payload changed. Sending to background worker...', payload);
     lastSentPayload = payloadString;
     chrome.runtime.sendMessage({ type: 'ACTIVITY_UPDATE', payload });
+  } else {
+    console.log('AutoEOD Debug: Payload unchanged. Skipping send.');
   }
 }
 

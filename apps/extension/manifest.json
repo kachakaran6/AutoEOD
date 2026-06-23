@@ -6,7 +6,8 @@
   "permissions": ["storage", "alarms"],
   "host_permissions": [
     "https://chat.gpt.com/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "http://localhost:3001/*"
   ],
   "background": {
     "service_worker": "background.js",

@@ -26,7 +26,14 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      const allowed = process.env.FRONTEND_URL || 'http://localhost:5173';
+      if (!origin || origin === allowed || origin.startsWith('chrome-extension://')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );

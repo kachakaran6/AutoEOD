@@ -7,9 +7,18 @@ async function getApiToken() {
   return result.apiToken;
 }
 
+async function logDebug(msg, data = {}) {
+  const { debugLogs = [] } = await chrome.storage.local.get('debugLogs');
+  debugLogs.unshift({ time: new Date().toISOString(), msg, data });
+  if (debugLogs.length > 20) debugLogs.pop();
+  await chrome.storage.local.set({ debugLogs });
+}
+
 async function sendActivityPayload(payload) {
+  await logDebug('Attempting to send payload', { payloadId: payload.externalId });
   const token = await getApiToken();
   if (!token) {
+    await logDebug('Failed: No API token set in extension');
     chrome.action.setBadgeText({ text: '!' });
     chrome.action.setBadgeBackgroundColor({ color: '#71717a' });
     return false;
@@ -26,6 +35,7 @@ async function sendActivityPayload(payload) {
     });
 
     if (res.status === 401) {
+      await logDebug('Failed: API returned 401 Unauthorized');
       // Token revoked or invalid
       await chrome.storage.local.remove('apiToken');
       chrome.action.setBadgeText({ text: '!' });
@@ -34,16 +44,19 @@ async function sendActivityPayload(payload) {
     }
 
     if (!res.ok) {
+      await logDebug(`Failed: API returned status ${res.status}`);
       throw new Error(`HTTP error! status: ${res.status}`);
     }
 
+    await logDebug('Success: Payload sent to API');
     // Success
-    chrome.action.setBadgeText({ text: 'âœ“' });
+    chrome.action.setBadgeText({ text: '✓' });
     chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
     await chrome.storage.local.set({ lastSync: new Date().toISOString() });
     
     return true;
   } catch (error) {
+    await logDebug('Failed: Network error', { error: error.toString() });
     console.error('AutoEOD Sync failed:', error);
     return false;
   }
