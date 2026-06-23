@@ -247,9 +247,9 @@ export function IntegrationsPage() {
                   Download the latest <code className="text-xs bg-black/50 px-1 py-0.5 rounded">autoeod-extension.zip</code> file from our GitHub Releases page and extract it to a folder on your computer.
                 </p>
                 <Button variant="outline" size="sm" asChild>
-                  <a href="https://github.com/kachakaran6/AutoEOD/releases/latest" target="_blank" rel="noopener noreferrer">
+                  <a href="https://github.com/kachakaran6/AutoEOD/releases/download/v1/autoeod-extension.zip" target="_blank" rel="noopener noreferrer">
                     <Github className="w-4 h-4 mr-2" />
-                    Go to GitHub Releases
+                    Download Extension (.zip)
                   </a>
                 </Button>
               </div>
@@ -257,13 +257,13 @@ export function IntegrationsPage() {
               <div className="bg-muted/30 border border-border p-4 rounded-lg">
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                   <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
-                  Install in Chrome
+                  Extract & Install
                 </h4>
-                <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1">
-                  <li>Open <code className="text-xs bg-black/50 px-1 py-0.5 rounded">chrome://extensions</code> in your browser.</li>
-                  <li>Enable <strong>Developer mode</strong> in the top right corner.</li>
-                  <li>Click <strong>Load unpacked</strong> in the top left.</li>
-                  <li>Select the extracted folder you downloaded in Step 1.</li>
+                <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1.5">
+                  <li><strong>Extract the .zip file:</strong> Right-click the downloaded file and select "Extract All..." to a folder you won't delete.</li>
+                  <li><strong>Open Chrome Extensions:</strong> In Chrome, type <code className="text-xs bg-black/50 px-1 py-0.5 rounded text-white">chrome://extensions</code> in your address bar and hit enter.</li>
+                  <li><strong>Enable Developer Mode:</strong> Toggle the switch in the top right corner.</li>
+                  <li><strong>Load the Extension:</strong> Click the "Load unpacked" button in the top left and select the extracted folder from step 1.</li>
                 </ol>
               </div>
 
