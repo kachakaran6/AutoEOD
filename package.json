@@ -11,7 +11,11 @@
     "dev:worker": "npm run dev --workspace=apps/worker",
     "dev:web": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces",
+    "postinstall": "npm run db:generate",
+    "start": "npm run start --workspace=apps/api",
+    "start:worker": "npm run start --workspace=apps/worker",
     "db:migrate": "npm run migrate --workspace=packages/db",
+    "db:migrate:deploy": "npm run migrate:deploy --workspace=packages/db",
     "db:generate": "npm run generate --workspace=packages/db",
     "db:studio": "npm run studio --workspace=packages/db"
   }
