@@ -266,7 +266,6 @@ export interface UserSettings {
   reportTemplate: string;
   reportLanguage: string;
   chatgptCaptureContent?: boolean;
-  chatgptCaptureContent?: boolean;
   emailConnection?: EmailConnection | null;
 }
 
@@ -301,4 +300,85 @@ export const extensionTokens = {
   list: () => apiRequest<ExtensionToken[]>('/extension-tokens'),
   create: (label: string) => apiRequest<ExtensionToken>('/extension-tokens', { method: 'POST', body: JSON.stringify({ label }) }),
   revoke: (id: string) => apiRequest<{ message: string }>(`/extension-tokens/${id}`, { method: 'DELETE' })
+};
+
+// ── Extension Settings ────────────────────────────────────────────────────────
+export interface UserExtensionSettings {
+  id: string;
+  userId: string;
+  globalPaused: boolean;
+  tier1GlobalDefault: boolean;
+  tier1DomainAllowlist: string[];
+  excludedDomains: string[];
+  updatedAt: string;
+}
+
+export const extensionSettings = {
+  get: () => apiRequest<UserExtensionSettings>('/extension-settings'),
+  update: (data: Partial<Omit<UserExtensionSettings, 'id'|'userId'|'updatedAt'>>) =>
+    apiRequest<UserExtensionSettings>('/extension-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ── Activity Log ──────────────────────────────────────────────────────────────
+export interface BrowserActivityLog {
+  id: string;
+  userId: string;
+  domain: string;
+  url: string;
+  pageTitle: string;
+  tabOpenedAt: string;
+  tabClosedAt: string | null;
+  durationSeconds: number;
+  captureTier: number;
+  snapshotText: string | null;
+  adapterPayload: any | null;
+  selected: boolean;
+  promotedToEventId: string | null;
+  createdAt: string;
+}
+
+export interface ActivityLogListResponse {
+  data: BrowserActivityLog[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export const activityLog = {
+  list: (params: { page?: number; limit?: number; domain?: string; date?: string; tier?: number; selectedOnly?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', params.page.toString());
+    if (params.limit) searchParams.set('limit', params.limit.toString());
+    if (params.domain) searchParams.set('domain', params.domain);
+    if (params.date) searchParams.set('date', params.date);
+    if (params.tier !== undefined) searchParams.set('tier', params.tier.toString());
+    if (params.selectedOnly) searchParams.set('selectedOnly', 'true');
+    return apiRequest<ActivityLogListResponse>(`/activity-log?${searchParams.toString()}`);
+  },
+  updateSelected: (id: string, selected: boolean) =>
+    apiRequest<BrowserActivityLog>(`/activity-log/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ selected }),
+    }),
+  bulkSelect: (selected: boolean, domain?: string, date?: string) =>
+    apiRequest<{ updatedCount: number }>('/activity-log/bulk-select', {
+      method: 'POST',
+      body: JSON.stringify({ selected, domain, date }),
+    }),
+  deleteBefore: (beforeDate: string) =>
+    apiRequest<{ deletedCount: number }>('/activity-log', {
+      method: 'DELETE',
+      body: JSON.stringify({ beforeDate }),
+    }),
+  promote: (date?: string, ids?: string[]) =>
+    apiRequest<{ promotedCount: number }>('/activity-log/promote', {
+      method: 'POST',
+      body: JSON.stringify({ date, ids }),
+    }),
 };

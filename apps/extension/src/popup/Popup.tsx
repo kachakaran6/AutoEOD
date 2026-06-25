@@ -6,12 +6,24 @@ export default function Popup() {
   const [inputToken, setInputToken] = useState('');
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
+  const [isRecording, setIsRecording] = useState<boolean>(true);
 
   useEffect(() => {
     chrome.storage.local.get(['apiToken', 'lastSync'], (res) => {
       if (res.apiToken) setToken(res.apiToken);
       if (res.lastSync) setLastSync(res.lastSync);
     });
+
+    // Check if background script says we're currently recording
+    try {
+      chrome.runtime.sendMessage({ type: 'GET_RECORDING_STATE' }, (response) => {
+        if (response && typeof response.isRecording === 'boolean') {
+          setIsRecording(response.isRecording);
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const handleConnect = async () => {
@@ -80,17 +92,29 @@ export default function Popup() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-            <p className="text-sm text-green-400 font-medium flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Capturing Activity
-            </p>
-            {lastSync && (
-              <p className="text-xs text-zinc-400 mt-2">
-                Last synced: {new Date(lastSync).toLocaleTimeString()}
+          {isRecording ? (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+              <p className="text-sm text-green-400 font-medium flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Universal Capture Active
               </p>
-            )}
-          </div>
+              {lastSync && (
+                <p className="text-xs text-zinc-400 mt-2">
+                  Last synced: {new Date(lastSync).toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
+              <p className="text-sm text-zinc-400 font-medium flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-zinc-500" />
+                Capture Paused
+              </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Disabled by global pause or out of work hours.
+              </p>
+            </div>
+          )}
 
           <button
             onClick={handleDisconnect}

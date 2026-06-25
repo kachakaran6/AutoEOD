@@ -1,20 +1,16 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 export interface SyncPayload {
-  externalId: string;
-  title: string;
-  lastSeenAt: string;
-  modelName?: string;
-  workspace?: string;
-  tabId?: number;
-  windowId?: number;
-  messages: Array<{ 
-    id?: string;
-    role: string; 
-    excerpt: string;
-    timestamp?: string;
-    durationMs?: number;
-  }>;
+  id: string; // local guid
+  domain: string;
+  url: string;
+  pageTitle: string;
+  tabOpenedAt: string;
+  tabClosedAt?: string | null;
+  durationSeconds: number;
+  captureTier: number;
+  snapshotText?: string | null;
+  adapterPayload?: any | null;
 }
 
 interface AutoEODDB extends DBSchema {
@@ -33,9 +29,14 @@ let dbPromise: Promise<IDBPDatabase<AutoEODDB>> | null = null;
 
 async function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<AutoEODDB>('AutoEOD-Extension-DB', 1, {
-      upgrade(db) {
-        db.createObjectStore('sync_queue', { keyPath: 'payload.externalId' });
+    dbPromise = openDB<AutoEODDB>('AutoEOD-Extension-DB', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 2) {
+          if (db.objectStoreNames.contains('sync_queue')) {
+            db.deleteObjectStore('sync_queue');
+          }
+          db.createObjectStore('sync_queue', { keyPath: 'payload.id' });
+        }
       },
     });
   }
@@ -44,7 +45,7 @@ async function getDB() {
 
 export async function enqueuePayload(payload: SyncPayload) {
   const db = await getDB();
-  const existing = await db.get('sync_queue', payload.externalId);
+  const existing = await db.get('sync_queue', payload.id);
   
   await db.put('sync_queue', {
     payload,
@@ -62,14 +63,14 @@ export async function getPendingPayloads() {
   return all.filter(item => item.nextRetryAt <= now);
 }
 
-export async function removePayload(externalId: string) {
+export async function removePayload(id: string) {
   const db = await getDB();
-  await db.delete('sync_queue', externalId);
+  await db.delete('sync_queue', id);
 }
 
-export async function updatePayloadRetry(externalId: string, retryCount: number, nextRetryAt: number) {
+export async function updatePayloadRetry(id: string, retryCount: number, nextRetryAt: number) {
   const db = await getDB();
-  const existing = await db.get('sync_queue', externalId);
+  const existing = await db.get('sync_queue', id);
   if (existing) {
     await db.put('sync_queue', {
       ...existing,

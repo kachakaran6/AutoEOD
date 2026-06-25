@@ -38,83 +38,66 @@ async function requireExtensionAuth(req: Request, res: Response, next: NextFunct
   next();
 }
 
-const ConversationMessageSchema = z.object({
-  role: z.string(),
-  excerpt: z.string(),
+const BrowserActivitySchema = z.object({
+  domain: z.string(),
+  url: z.string(),
+  pageTitle: z.string(),
+  tabOpenedAt: z.string().datetime(),
+  tabClosedAt: z.string().datetime().nullable().optional(),
+  durationSeconds: z.number(),
+  captureTier: z.number().int().min(0).max(2),
+  snapshotText: z.string().nullable().optional(),
+  adapterPayload: z.any().optional(),
 });
 
-const ConversationSchema = z.object({
-  externalId: z.string(),
-  title: z.string(),
-  lastSeenAt: z.string().datetime(),
-  messages: z.array(ConversationMessageSchema).optional(),
+const UniversalPayloadSchema = z.object({
+  activities: z.array(BrowserActivitySchema),
 });
 
-const ExtensionActivityPayloadSchema = z.object({
-  conversations: z.array(ConversationSchema),
-});
-
-// â”€â”€ POST /api/extension/activity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── POST /api/extension/browser-activity ─────────────────────────────────────
 extensionActivityRouter.post('/', requireExtensionAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
   
-  const parseResult = ExtensionActivityPayloadSchema.safeParse(req.body);
+  const parseResult = UniversalPayloadSchema.safeParse(req.body);
   if (!parseResult.success) {
     res.status(400).json({ error: 'Invalid payload', details: parseResult.error.flatten() });
     return;
   }
 
-  const { conversations } = parseResult.data;
+  const { activities } = parseResult.data;
 
-  // Check privacy settings
-  const settings = await prisma.userSettings.findUnique({
+  // Fetch settings to double check global pause and exclusions just in case
+  const settings = await prisma.userExtensionSettings.findUnique({
     where: { userId },
-    select: { chatgptCaptureContent: true },
   });
 
-  const captureContent = settings?.chatgptCaptureContent ?? false;
+  const globalPaused = settings?.globalPaused ?? false;
+  const excludedDomains = (settings?.excludedDomains as string[]) || [];
+  
+  if (globalPaused) {
+    res.json({ message: 'Global pause active, activities ignored', count: 0 });
+    return;
+  }
 
   let processedCount = 0;
 
-  for (const conv of conversations) {
-    const occurredAt = new Date(conv.lastSeenAt);
-
-    // Strip messages if content capture is disabled
-    let messages = conv.messages;
-    if (!captureContent) {
-      messages = undefined;
+  for (const activity of activities) {
+    if (excludedDomains.includes(activity.domain)) {
+      continue; // Skip excluded domains
     }
 
-    const rawPayload = {
-      title: conv.title,
-      messageCount: messages ? messages.length : 0,
-      lastSeenAt: conv.lastSeenAt,
-      ...(messages ? { messages } : {}),
-    };
-
-    await prisma.activityEvent.upsert({
-      where: {
-        userId_source_externalId: {
-          userId,
-          source: 'chatgpt',
-          externalId: conv.externalId,
-        },
-      },
-      create: {
+    await prisma.browserActivityLog.create({
+      data: {
         userId,
-        source: 'chatgpt',
-        type: 'chatgpt_conversation',
-        externalId: conv.externalId,
-        repo: '',
-        title: conv.title,
-        url: `https://chatgpt.com/c/${conv.externalId}`,
-        occurredAt,
-        rawPayload,
-      },
-      update: {
-        title: conv.title,
-        occurredAt,
-        rawPayload,
+        domain: activity.domain,
+        url: activity.url,
+        pageTitle: activity.pageTitle,
+        tabOpenedAt: new Date(activity.tabOpenedAt),
+        tabClosedAt: activity.tabClosedAt ? new Date(activity.tabClosedAt) : null,
+        durationSeconds: activity.durationSeconds,
+        captureTier: activity.captureTier,
+        snapshotText: activity.snapshotText,
+        adapterPayload: activity.adapterPayload,
       },
     });
 

@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Loader2, Info, CheckCircle2, XCircle } from 'lucide-react'
-import { settings as settingsApi, getAccessToken } from '@/lib/api'
-import type { UserSettings } from '@/lib/api'
+import { settings as settingsApi, extensionSettings as extSettingsApi, getAccessToken } from '@/lib/api'
+import type { UserSettings, UserExtensionSettings } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,8 +43,15 @@ export function SettingsPage() {
     queryFn: settingsApi.get,
   })
 
+  const { data: extData, isLoading: extLoading } = useQuery({
+    queryKey: ['extensionSettings'],
+    queryFn: extSettingsApi.get,
+  })
+
   const [form, setForm] = useState<Partial<UserSettings>>({})
+  const [extForm, setExtForm] = useState<Partial<UserExtensionSettings>>({})
   const [isDirty, setIsDirty] = useState(false)
+  const [extIsDirty, setExtIsDirty] = useState(false)
 
   useEffect(() => {
     if (data) {
@@ -53,17 +60,34 @@ export function SettingsPage() {
     }
   }, [data])
 
+  useEffect(() => {
+    if (extData) {
+      setExtForm(extData)
+      setExtIsDirty(false)
+    }
+  }, [extData])
+
   const updateField = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
     setIsDirty(true)
   }
 
+  const updateExtField = <K extends keyof UserExtensionSettings>(key: K, value: UserExtensionSettings[K]) => {
+    setExtForm((prev) => ({ ...prev, [key]: value }))
+    setExtIsDirty(true)
+  }
+
   const saveMutation = useMutation({
-    mutationFn: () => settingsApi.update(form),
+    mutationFn: async () => {
+      if (isDirty) await settingsApi.update(form)
+      if (extIsDirty) await extSettingsApi.update(extForm)
+    },
     onSuccess: () => {
       toast.success('Settings saved')
       queryClient.invalidateQueries({ queryKey: ['settings'] })
+      queryClient.invalidateQueries({ queryKey: ['extensionSettings'] })
       setIsDirty(false)
+      setExtIsDirty(false)
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -96,7 +120,7 @@ export function SettingsPage() {
         </div>
         <Button
           onClick={() => saveMutation.mutate()}
-          disabled={!isDirty || saveMutation.isPending}
+          disabled={(!isDirty && !extIsDirty) || saveMutation.isPending}
           id="btn-save-settings"
         >
           {saveMutation.isPending ? (
@@ -366,16 +390,64 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
-      {/* ChatGPT Integration Settings */}
+      {/* Activity Capture (Universal Radar) Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">ChatGPT Integration</CardTitle>
-          <CardDescription>Control what the browser extension captures</CardDescription>
+          <CardTitle className="text-base">Activity Capture</CardTitle>
+          <CardDescription>
+            This captures websites you visit during your work hours so you can pick what's relevant for your daily report. Nothing is shared with anyone else automatically — you choose what gets included, and you can pause or exclude any site at any time.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Global Pause</Label>
+              <p className="text-xs text-muted-foreground">Stop all tracking instantly, everywhere.</p>
+            </div>
+            <Switch
+              checked={extForm.globalPaused ?? false}
+              onCheckedChange={(v) => updateExtField('globalPaused', v)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Domain Exclusion List</Label>
+            <p className="text-xs text-muted-foreground">Never track activity on these domains (e.g. personal email, banking).</p>
+            <Input
+              placeholder="e.g. gmail.com, chase.com (comma separated)"
+              value={(extForm.excludedDomains || []).join(', ')}
+              onChange={(e) => updateExtField('excludedDomains', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+            />
+          </div>
+
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-1 max-w-[80%]">
-              <Label htmlFor="setting-chatgpt-capture" className="text-sm font-medium">Capture ChatGPT message content (not just titles)</Label>
+              <Label className="text-sm font-medium">Tier 1 Snapshot Global Default</Label>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If on, we capture a short snippet of text from the pages you visit to give the AI context. We always skip password/payment pages.
+              </p>
+            </div>
+            <Switch
+              checked={extForm.tier1GlobalDefault ?? false}
+              onCheckedChange={(v) => updateExtField('tier1GlobalDefault', v)}
+            />
+          </div>
+          
+          {!extForm.tier1GlobalDefault && (
+            <div className="space-y-2">
+              <Label>Tier 1 Allowed Domains</Label>
+              <p className="text-xs text-muted-foreground">Only capture snippets on these domains.</p>
+              <Input
+                placeholder="e.g. github.com, notion.so (comma separated)"
+                value={(extForm.tier1DomainAllowlist || []).join(', ')}
+                onChange={(e) => updateExtField('tier1DomainAllowlist', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="space-y-1 max-w-[80%]">
+              <Label htmlFor="setting-chatgpt-capture" className="text-sm font-medium">Capture ChatGPT message content (Tier 2)</Label>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Off: we only see conversation titles and timing. On: we also capture short excerpts of your messages, to help the AI understand what you worked on. Off is recommended unless you want more detailed reports.
               </p>

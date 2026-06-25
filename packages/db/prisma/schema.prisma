@@ -25,6 +25,8 @@ model User {
   notifications     Notification[]
   extensionTokens   ExtensionToken[]
   emailConnection   EmailConnection?
+  browserLogs       BrowserActivityLog[]
+  extensionSettings UserExtensionSettings?
 }
 
 model UserSettings {
@@ -163,4 +165,42 @@ model ExtensionToken {
   revokedAt   DateTime?
 
   @@index([userId])
+}
+
+model BrowserActivityLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  domain          String
+  url             String   @db.Text
+  pageTitle       String
+  tabOpenedAt     DateTime
+  tabClosedAt     DateTime?
+  durationSeconds Int      @default(0)
+
+  captureTier     Int      // 0, 1, or 2
+  snapshotText    String?  @db.Text   // populated only if captureTier >= 1
+  adapterPayload  Json?                // populated only if captureTier = 2
+
+  selected        Boolean  @default(false)
+  promotedToEventId String? @unique
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId, tabOpenedAt])
+  @@index([userId, domain])
+}
+
+model UserExtensionSettings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  globalPaused        Boolean  @default(false)
+  tier1GlobalDefault  Boolean  @default(false)
+  tier1DomainAllowlist Json    @default("[]")
+  excludedDomains     Json    @default("[]")
+
+  updatedAt           DateTime @updatedAt
 }

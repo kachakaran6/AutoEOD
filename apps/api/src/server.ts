@@ -20,6 +20,8 @@ import { settingsRouter } from './routes/settings';
 import { notificationsRouter } from './routes/notifications';
 import { extensionTokensRouter } from './routes/extensionTokens';
 import { extensionActivityRouter } from './routes/extensionActivity';
+import { activityLogRouter } from './routes/activity-log';
+import { extensionSettingsRouter } from './routes/extension-settings';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -77,7 +79,9 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/extension-tokens', extensionTokensRouter);
-app.use('/api/extension/activity', extensionActivityRouter);
+app.use('/api/extension/browser-activity', extensionActivityRouter);
+app.use('/api/activity-log', activityLogRouter);
+app.use('/api/extension-settings', extensionSettingsRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

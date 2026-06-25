@@ -69,6 +69,17 @@ function buildPrompt(
             if (e.source === 'chatgpt' && e.rawPayload?.messages) {
               const excerpts = e.rawPayload.messages.map((m: any) => `${m.role}: ${m.excerpt}`).join('\n');
               desc += `\n   Excerpts:\n   ${excerpts}`;
+            } else if (e.source === 'browser') {
+              if (e.rawPayload?.durationSeconds) {
+                desc += ` (Duration: ${Math.floor(e.rawPayload.durationSeconds / 60)}m ${e.rawPayload.durationSeconds % 60}s)`;
+              }
+              if (e.rawPayload?.snapshotText) {
+                desc += `\n   Page Snippet:\n   ${e.rawPayload.snapshotText}`;
+              }
+              if (e.rawPayload?.adapterPayload?.messages) {
+                const excerpts = e.rawPayload.adapterPayload.messages.map((m: any) => `${m.role}: ${m.excerpt}`).join('\n');
+                desc += `\n   Excerpts:\n   ${excerpts}`;
+              }
             }
             return desc;
           })
@@ -89,7 +100,7 @@ Instructions:
 1. Use ONLY the events listed above as your source of truth. Do NOT invent commits, PRs, or work that is not listed.
 2. Group related events into human-readable accomplishments (e.g., multiple commits toward one PR → one bullet).
 3. Distinguish "completed" (merged PRs, closed issues, completed commits) from "in progress" (open PRs, recent commits without a merge).
-4. Some activity entries are from ChatGPT conversations, identified by source: 'chatgpt'. Use conversation titles (and message excerpts, if present) to understand what topics or problems the user was working on — but never claim a ChatGPT conversation alone constitutes 'completed work.' Frame ChatGPT activity as research/exploration/debugging assistance, not as a deliverable in itself, unless the GitHub activity for the same time period corroborates an actual completed change.
+4. Some activity entries are from ChatGPT conversations or general browser activity (source: 'chatgpt' or 'browser'). Use conversation titles, page titles, and snippets to understand what topics or problems the user was researching/debugging. Treat these as corroborating evidence or exploration. Never claim a ChatGPT conversation or a viewed webpage constitutes 'completed work' on its own unless explicitly directed. Frame them as research/exploration assistance.
 5. The "summary" field should be 2-3 natural sentences (or 1-2 if tone is "short") summarizing the day's work.
 6. Leave "blockers" as null if nothing in the events suggests a blocker. Never invent a blocker.
 7. Write "tomorrowPlan" as a reasonable inference from open/in-progress items. Frame it as a suggestion, not a fact.

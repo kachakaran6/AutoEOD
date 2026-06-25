@@ -14,12 +14,21 @@ export function observeAndSend() {
   const workspace = getWorkspace();
 
   const payload = {
-    externalId: id,
-    title,
-    lastSeenAt: new Date().toISOString(),
-    modelName,
-    workspace,
-    messages
+    id: crypto.randomUUID(),
+    domain: window.location.hostname,
+    url: window.location.href,
+    pageTitle: document.title,
+    tabOpenedAt: new Date().toISOString(),
+    durationSeconds: 0, // Duration handled by background tier 0
+    captureTier: 2,
+    adapterPayload: {
+      externalId: id,
+      title,
+      lastSeenAt: new Date().toISOString(),
+      modelName,
+      workspace,
+      messages
+    }
   };
 
   const payloadString = JSON.stringify(payload);

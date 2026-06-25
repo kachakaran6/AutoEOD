@@ -13,6 +13,7 @@ import { TimelinePage } from '@/pages/TimelinePage'
 import { IntegrationsPage } from '@/pages/IntegrationsPage'
 import { ReportPage } from '@/pages/ReportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { ActivityLogPage } from '@/pages/ActivityLogPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,7 @@ export default function App() {
                 }
               >
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/activity-log" element={<ActivityLogPage />} />
                 <Route path="/timeline" element={<TimelinePage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/reports/:date" element={<ReportPage />} />

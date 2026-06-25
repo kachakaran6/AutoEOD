@@ -16,22 +16,29 @@ export async function processQueue() {
 
   let hasError = false;
 
-  for (const item of pending) {
-    const success = await sendToServer(item.payload, token);
+  // We can batch all pending payloads into one request
+  const activities = pending.map(item => item.payload);
+
+  if (activities.length > 0) {
+    const success = await sendToServer(activities, token);
     
     if (success) {
-      await removePayload(item.payload.externalId);
+      for (const item of pending) {
+        await removePayload(item.payload.id);
+      }
     } else {
       hasError = true;
-      const newRetryCount = item.retryCount + 1;
-      
-      if (newRetryCount >= MAX_RETRIES) {
-        // Drop it if we retry too much
-        await removePayload(item.payload.externalId);
-      } else {
-        // Exponential backoff
-        const backoff = BASE_BACKOFF_MS * Math.pow(2, newRetryCount);
-        await updatePayloadRetry(item.payload.externalId, newRetryCount, Date.now() + backoff);
+      for (const item of pending) {
+        const newRetryCount = item.retryCount + 1;
+        
+        if (newRetryCount >= MAX_RETRIES) {
+          // Drop it if we retry too much
+          await removePayload(item.payload.id);
+        } else {
+          // Exponential backoff
+          const backoff = BASE_BACKOFF_MS * Math.pow(2, newRetryCount);
+          await updatePayloadRetry(item.payload.id, newRetryCount, Date.now() + backoff);
+        }
       }
     }
   }
@@ -46,22 +53,31 @@ export async function processQueue() {
   }
 }
 
-async function sendToServer(payload: SyncPayload, token: string): Promise<boolean> {
+async function sendToServer(activities: SyncPayload[], token: string): Promise<boolean> {
   try {
-    const res = await fetch(getApiEndpoint(), {
+    // Determine API base url
+    let endpoint = getApiEndpoint();
+    // Swap the old endpoint path to the new one if it ends with /activity
+    if (endpoint.endsWith('/activity')) {
+      endpoint = endpoint.replace('/activity', '/browser-activity');
+    } else {
+      endpoint = `${endpoint}/browser-activity`;
+    }
+
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ conversations: [payload] })
+      body: JSON.stringify({ activities })
     });
 
     if (res.status === 401) {
       // Token revoked or invalid
       await chrome.storage.local.remove('apiToken');
       updateBadge('!', '#ef4444');
-      return false; // Stop this payload, it'll fail on next retry too unless token fixed
+      return false; 
     }
 
     if (!res.ok) {
