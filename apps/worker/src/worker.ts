@@ -8,6 +8,7 @@ import { redisConnection } from './lib/redis';
 import { logger } from './lib/logger';
 import { syncGitHubActivity } from './jobs/github-sync';
 import { generateReport, type GenerateReportJobData } from './jobs/generate-report';
+import { sendReportJob, type SendReportJobData } from './jobs/send-report';
 import { scheduleDispatcher } from './jobs/schedule-dispatcher';
 import { prisma } from '@autoeod/db';
 
@@ -83,8 +84,18 @@ const generateReportWorker = new Worker(
   { connection: redisConnection as any, concurrency: 3 }
 );
 
+// ── Send Report Worker ─────────────────────────────────────────────────────────
+const sendReportWorker = new Worker(
+  'send-report',
+  async (job) => {
+    const data = job.data as SendReportJobData;
+    await sendReportJob(data);
+  },
+  { connection: redisConnection as any, concurrency: 5 }
+);
+
 // ── Event handlers ────────────────────────────────────────────────────────────
-for (const worker of [githubSyncWorker, scheduleDispatcherWorker, generateReportWorker]) {
+for (const worker of [githubSyncWorker, scheduleDispatcherWorker, generateReportWorker, sendReportWorker]) {
   worker.on('completed', (job) => {
     logger.info({ jobId: job.id, queue: job.queueName }, 'Job completed');
   });
@@ -113,6 +124,7 @@ const shutdown = async (signal: string): Promise<void> => {
     githubSyncWorker.close(),
     scheduleDispatcherWorker.close(),
     generateReportWorker.close(),
+    sendReportWorker.close(),
   ]);
   await prisma.$disconnect();
   logger.info('Worker shutdown complete');

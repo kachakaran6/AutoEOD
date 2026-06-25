@@ -23,6 +23,7 @@ const SettingsSchema = z.object({
     .regex(/^\d{2}:\d{2}$/)
     .optional(),
   autoGenerate: z.boolean().optional(),
+  autoSend: z.boolean().optional(),
   managerEmail: z.string().email().nullable().optional(),
   ccEmails: z.string().nullable().optional(),
   reportTemplate: z.enum(['professional', 'short', 'detailed']).optional(),

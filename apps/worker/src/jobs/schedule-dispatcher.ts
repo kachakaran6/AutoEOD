@@ -32,11 +32,16 @@ export async function scheduleDispatcher(): Promise<void> {
     // Parse times to compare
     const [rH, rM] = reportTime.split(':').map(Number);
     const [nH, nM] = nowHHMM.split(':').map(Number);
+    // We want generation to start 5 minutes BEFORE reportTime.
     const reportMinutes = rH * 60 + rM;
+    const targetGenerationMinutes = (reportMinutes - 5 + 1440) % 1440;
+    
     const nowMinutes = nH * 60 + nM;
 
-    // Match if within the 5-minute window [reportTime, reportTime+5)
-    if (nowMinutes < reportMinutes || nowMinutes >= reportMinutes + 5) continue;
+    // Match if within the 5-minute window [targetGenerationMinutes, targetGenerationMinutes+5)
+    // Use modulo difference to handle wraparound (e.g., target 23:58, now 00:02)
+    const diff = (nowMinutes - targetGenerationMinutes + 1440) % 1440;
+    if (diff >= 5) continue;
 
     // Check if a report already exists for today (to avoid double-triggering)
     const existing = await prisma.report.findUnique({
@@ -51,7 +56,7 @@ export async function scheduleDispatcher(): Promise<void> {
     }
 
     // Enqueue generation
-    const jobId = `scheduled-${userId}-${reportDate}`;
+    const jobId = `scheduled-${userId}-${reportDate}-${reportTime.replace(':', '')}`;
     await generateReportQueue.add(
       'generate-report',
       { userId, reportDate, manual: false },

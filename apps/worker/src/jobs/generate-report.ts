@@ -7,6 +7,10 @@ import { DateTime } from 'luxon';
 import { prisma } from '@autoeod/db';
 import { logger } from '../lib/logger';
 import { sendReminderEmail } from '../lib/email';
+import { Queue } from 'bullmq';
+import { redisConnection } from '../lib/redis';
+
+const sendReportQueue = new Queue('send-report', { connection: redisConnection as any });
 
 // Lazy OpenAI client
 let _openai: OpenAI | null = null;
@@ -263,17 +267,43 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     },
   });
 
-  // Stretch goal: send email reminder
-  try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-    if (user) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      await sendReminderEmail(userId, user.email, reportDate, `${frontendUrl}/reports/${reportDate}`);
-      logger.info({ userId, reportDate }, 'Email reminder sent');
+  if (settings.autoSend) {
+    // Schedule the send-report job to run EXACTLY at reportTime
+    const nowTz = DateTime.now().setZone(tz);
+    const [rH, rM] = settings.reportTime.split(':').map(Number);
+    let targetTime = DateTime.fromObject({ hour: rH, minute: rM, second: 0 }, { zone: tz });
+    
+    // If we somehow generated this after the target time today, schedule for immediately (or next day)
+    if (nowTz > targetTime) {
+      targetTime = targetTime.plus({ days: 1 }); // Or just run immediately if it's the same day, but typically it shouldn't happen.
+      // Actually, if we are just a minute late, we should just send immediately.
+      if (nowTz.diff(targetTime, 'minutes').minutes < 60) {
+        targetTime = nowTz;
+      }
     }
-  } catch (emailErr) {
-    // Non-fatal — log but don't fail the job
-    logger.warn({ emailErr, userId }, 'Failed to send email reminder (non-fatal)');
+
+    const delay = Math.max(0, targetTime.toMillis() - nowTz.toMillis());
+    
+    await sendReportQueue.add(
+      'send-report',
+      { userId, reportId: report.id },
+      { delay, jobId: `send-${report.id}` }
+    );
+    
+    logger.info({ userId, reportId: report.id, delay }, 'Enqueued auto-send job');
+  } else {
+    // Stretch goal: send email reminder for review
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      if (user) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        await sendReminderEmail(userId, user.email, reportDate, `${frontendUrl}/reports/${reportDate}`);
+        logger.info({ userId, reportDate }, 'Email reminder sent');
+      }
+    } catch (emailErr) {
+      // Non-fatal — log but don't fail the job
+      logger.warn({ emailErr, userId }, 'Failed to send email reminder (non-fatal)');
+    }
   }
 
   logger.info({ userId, reportDate, reportId: report.id, model: usedModel }, 'Report generated successfully');

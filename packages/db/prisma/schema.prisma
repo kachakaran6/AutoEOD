@@ -37,6 +37,7 @@ model UserSettings {
   workEndTime    String  @default("18:00")
   reportTime     String  @default("17:50") // when daily report generation fires
   autoGenerate   Boolean @default(true)
+  autoSend       Boolean @default(false)
   managerEmail   String?
   ccEmails       String? // comma-separated
   reportTemplate String  @default("professional") // "professional" | "short" | "detailed"

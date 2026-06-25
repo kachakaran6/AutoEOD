@@ -1,6 +1,7 @@
 import { prisma } from '@autoeod/db';
 import { decrypt, encrypt } from './crypto';
 import { logger } from './logger';
+import MailComposer from 'nodemailer/lib/mail-composer';
 
 // Interface matching what we used in the previous setup
 export interface EmailPayload {
@@ -80,7 +81,7 @@ export class EmailProviderService {
 
       const data = await res.json() as any;
       if (!data.access_token) {
-        throw new Error('Failed to refresh Google access token');
+        throw new Error('Failed to refresh Google access token: ' + (data.error_description || data.error || 'Unknown error'));
       }
 
       newAccessToken = data.access_token;
@@ -107,7 +108,7 @@ export class EmailProviderService {
 
       const data = await res.json() as any;
       if (!data.access_token) {
-        throw new Error('Failed to refresh Zoho access token');
+        throw new Error('Failed to refresh Zoho access token: ' + (data.error || 'Unknown error'));
       }
 
       newAccessToken = data.access_token;
@@ -126,23 +127,28 @@ export class EmailProviderService {
   }
 
   private async sendViaGmail(accessToken: string, payload: Omit<EmailPayload, 'cc'> & { senderName: string, senderEmail: string, cc: string }): Promise<void> {
-    const rawMessage = [
-      `From: "${payload.senderName}" <${payload.senderEmail}>`,
-      `To: ${payload.to}`,
-      ...(payload.cc ? [`Cc: ${payload.cc}`] : []),
-      `Subject: ${payload.subject}`,
-      'Content-Type: text/html; charset="UTF-8"',
-      '',
-      payload.html,
-    ].join('\r\n');
+    const mailOptions: any = {
+      from: `"${payload.senderName}" <${payload.senderEmail}>`,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+    };
+    
+    if (payload.cc) {
+      mailOptions.cc = payload.cc;
+    }
 
-    const encodedMessage = Buffer.from(rawMessage)
+    const mail = new MailComposer(mailOptions);
+    const mimeNode = mail.compile();
+    const rawMessage = await mimeNode.build();
+
+    const encodedMessage = rawMessage
       .toString('base64')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    const res = await fetch('https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send', {
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -154,7 +160,7 @@ export class EmailProviderService {
     if (!res.ok) {
       const errorText = await res.text();
       logger.error({ error: errorText }, 'Gmail API sending failed');
-      throw new Error('Failed to send email via Gmail API');
+      throw new Error(`Failed to send email via Gmail API: ${res.status} - ${errorText}`);
     }
   }
 
@@ -167,7 +173,8 @@ export class EmailProviderService {
     });
     
     if (!accountRes.ok) {
-      throw new Error('Failed to fetch Zoho account information');
+      const errorText = await accountRes.text();
+      throw new Error(`Failed to fetch Zoho account information: ${accountRes.status} - ${errorText}`);
     }
     
     const accountData = await accountRes.json() as any;
@@ -201,7 +208,7 @@ export class EmailProviderService {
     if (!sendRes.ok) {
       const errorText = await sendRes.text();
       logger.error({ error: errorText }, 'Zoho Mail API sending failed');
-      throw new Error('Failed to send email via Zoho Mail API');
+      throw new Error(`Failed to send email via Zoho Mail API: ${sendRes.status} - ${errorText}`);
     }
   }
 }

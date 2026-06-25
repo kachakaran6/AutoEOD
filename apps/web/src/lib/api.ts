@@ -138,7 +138,6 @@ export const settings = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  testSmtp: () => apiRequest<{ message: string }>('/settings/test-smtp', { method: 'POST' }),
   disconnectEmail: () => apiRequest<{ success: boolean }>('/settings/email-connection', { method: 'DELETE' }),
 };
 
@@ -261,6 +260,7 @@ export interface UserSettings {
   workEndTime: string;
   reportTime: string;
   autoGenerate: boolean;
+  autoSend: boolean;
   managerEmail: string | null;
   ccEmails: string | null;
   reportTemplate: string;
