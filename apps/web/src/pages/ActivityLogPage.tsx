@@ -6,7 +6,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import type { ColumnDef, PaginationState } from '@tanstack/react-table'
-import { DateTime } from 'luxon'
+import { format, addSeconds } from 'date-fns'
 import { Activity, ShieldAlert, Trash2, CheckSquare, Square, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { activityLog } from '@/lib/api'
@@ -25,7 +25,7 @@ export function ActivityLogPage() {
   })
   
   const [domainFilter, setDomainFilter] = useState('')
-  const [dateFilter, setDateFilter] = useState(() => DateTime.now().toISODate()!)
+  const [dateFilter, setDateFilter] = useState(() => format(new Date(), 'yyyy-MM-dd'))
 
   const { data, isLoading } = useQuery({
     queryKey: ['activityLog', pagination.pageIndex, pagination.pageSize, domainFilter, dateFilter],
@@ -95,12 +95,13 @@ export function ActivityLogPage() {
     },
     {
       accessorKey: 'tabOpenedAt',
-      header: 'Time',
+      header: 'Start - End',
       cell: ({ row }) => {
-        const d = DateTime.fromISO(row.original.tabOpenedAt)
-        return <div className="text-sm">{d.toFormat('HH:mm')}</div>
+        const start = new Date(row.original.tabOpenedAt)
+        const end = addSeconds(start, row.original.durationSeconds)
+        return <div className="text-sm whitespace-nowrap">{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</div>
       },
-      size: 80,
+      size: 110,
     },
     {
       accessorKey: 'durationSeconds',
@@ -136,12 +137,30 @@ export function ActivityLogPage() {
     },
     {
       accessorKey: 'pageTitle',
-      header: 'Page Title',
-      cell: ({ row }) => (
-        <div className="text-sm truncate max-w-md" title={row.original.pageTitle}>
-          {row.original.pageTitle}
-        </div>
-      ),
+      header: 'Page & Details',
+      cell: ({ row }) => {
+        let detailNode = null;
+        if (row.original.captureTier === 1 && row.original.snapshotText) {
+          const text = row.original.snapshotText.replace(/\s+/g, ' ').substring(0, 100);
+          detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm" title={row.original.snapshotText}>Snippet: {text}...</div>;
+        } else if (row.original.captureTier === 2 && row.original.adapterPayload) {
+          const payload = row.original.adapterPayload as any;
+          if (payload.title) {
+            detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm">Conversation: {payload.title}</div>;
+          } else if (payload.messages && payload.messages.length > 0) {
+            detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm">Exchanged {payload.messages.length} messages</div>;
+          }
+        }
+        
+        return (
+          <div className="flex flex-col">
+            <div className="text-sm font-medium truncate max-w-md" title={row.original.pageTitle}>
+              {row.original.pageTitle || 'Untitled Page'}
+            </div>
+            {detailNode}
+          </div>
+        );
+      },
     },
   ]
 
