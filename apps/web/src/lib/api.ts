@@ -266,6 +266,7 @@ export interface UserSettings {
   reportTemplate: string;
   reportLanguage: string;
   chatgptCaptureContent?: boolean;
+  includeRadarLogs?: boolean;
   emailConnection?: EmailConnection | null;
 }
 

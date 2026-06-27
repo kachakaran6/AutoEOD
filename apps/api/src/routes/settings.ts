@@ -29,6 +29,7 @@ const SettingsSchema = z.object({
   reportTemplate: z.enum(['professional', 'short', 'detailed']).optional(),
   reportLanguage: z.enum(['english', 'hindi', 'gujarati']).optional(),
   chatgptCaptureContent: z.boolean().optional(),
+  includeRadarLogs: z.boolean().optional(),
 });
 
 // ── GET /api/settings ─────────────────────────────────────────────────────────

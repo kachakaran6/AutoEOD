@@ -167,8 +167,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     second: 59,
   });
 
-  // Fetch activity events for this work day
-  const events = await prisma.activityEvent.findMany({
+  const events: any[] = await prisma.activityEvent.findMany({
     where: {
       userId,
       occurredAt: {
@@ -179,6 +178,47 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     orderBy: { occurredAt: 'asc' },
     select: { id: true, source: true, type: true, title: true, repo: true, url: true, occurredAt: true, rawPayload: true },
   });
+
+  if ((settings as any).includeRadarLogs) {
+    const radarLogs = await prisma.browserActivityLog.findMany({
+      where: {
+        userId,
+        tabOpenedAt: {
+          gte: dayStart.toJSDate(),
+          lte: dayEnd.toJSDate(),
+        },
+        promotedToEventId: null, // Only unpromoted ones to prevent double-counting
+      },
+    });
+
+    const domainStats = new Map<string, { duration: number; title: string; count: number }>();
+    for (const log of radarLogs) {
+      const current = domainStats.get(log.domain) || { duration: 0, title: log.pageTitle, count: 0 };
+      domainStats.set(log.domain, {
+        duration: current.duration + log.durationSeconds,
+        title: log.pageTitle || current.title,
+        count: current.count + 1,
+      });
+    }
+
+    for (const [domain, stats] of domainStats.entries()) {
+      if (stats.duration < 60) continue; // Skip noise under 1 minute
+
+      const durationMins = Math.floor(stats.duration / 60);
+      const durationSecs = stats.duration % 60;
+      
+      events.push({
+        id: `radar-summary-${domain}`,
+        source: 'browser',
+        type: 'radar_summary',
+        title: `Browsed ${domain} (${durationMins}m ${durationSecs}s, ${stats.count} visits) - e.g. ${stats.title}`,
+        repo: '',
+        url: `https://${domain}`,
+        occurredAt: dayEnd.toJSDate(),
+        rawPayload: { durationSeconds: stats.duration, count: stats.count },
+      });
+    }
+  }
 
   logger.info({ userId, reportDate, eventCount: events.length }, 'Events fetched for report');
 

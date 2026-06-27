@@ -215,6 +215,18 @@ export function SettingsPage() {
               disabled={!(form.autoGenerate ?? true)}
             />
           </div>
+          
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="setting-include-radar" className="text-sm font-medium">Auto-include Radar Logs</Label>
+              <p className="text-xs text-muted-foreground">Automatically summarize and include your Activity Radar logs when generating reports</p>
+            </div>
+            <Switch
+              id="setting-include-radar"
+              checked={form.includeRadarLogs ?? false}
+              onCheckedChange={(v) => updateField('includeRadarLogs', v)}
+            />
+          </div>
         </CardContent>
       </Card>
 

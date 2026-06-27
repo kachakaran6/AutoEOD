@@ -45,6 +45,7 @@ model UserSettings {
   reportTemplate String  @default("professional") // "professional" | "short" | "detailed"
   reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
   chatgptCaptureContent Boolean @default(false)
+  includeRadarLogs Boolean @default(false)
 
   updatedAt DateTime @updatedAt
 }
