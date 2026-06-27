@@ -307,7 +307,7 @@ export function SettingsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <a href={(data.emailConnection.provider === 'google' ? '/api/auth/google/connect' : '/api/auth/zoho/connect') + `?token=${getAccessToken()}`}>
+                  <a href={((import.meta as any).env.VITE_API_URL || '/api') + (data.emailConnection.provider === 'google' ? '/auth/google/connect' : '/auth/zoho/connect') + `?token=${getAccessToken()}`}>
                     Reconnect
                   </a>
                 </Button>
@@ -321,7 +321,7 @@ export function SettingsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button variant="outline" className="h-16 flex justify-start gap-4 px-4 hover:bg-slate-50" asChild>
-                  <a href={`/api/auth/google/connect?token=${getAccessToken()}`}>
+                  <a href={`${(import.meta as any).env.VITE_API_URL || '/api'}/auth/google/connect?token=${getAccessToken()}`}>
                     <svg className="w-6 h-6" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -332,7 +332,7 @@ export function SettingsPage() {
                   </a>
                 </Button>
                 <Button variant="outline" className="h-16 flex justify-start gap-4 px-4 hover:bg-slate-50" asChild>
-                  <a href={`/api/auth/zoho/connect?token=${getAccessToken()}`}>
+                  <a href={`${(import.meta as any).env.VITE_API_URL || '/api'}/auth/zoho/connect?token=${getAccessToken()}`}>
                     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" color="#e4342b">
                       <path d="M12.44 2.89L20.8 7.72c.44.25.71.72.71 1.23v9.64c0 .5-.27.97-.71 1.23l-8.36 4.82c-.44.26-.98.26-1.42 0l-8.36-4.82c-.44-.25-.71-.72-.71-1.23V8.95c0-.5.27-.97.71-1.23l8.36-4.82c.45-.26.98-.26 1.42 0zM12 16.5c-2.48 0-4.5-2.02-4.5-4.5s2.02-4.5 4.5-4.5 4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z" />
                     </svg>
