@@ -86,17 +86,24 @@ extensionActivityRouter.post('/', requireExtensionAuth, async (req: Request, res
       continue; // Skip excluded domains
     }
 
+    // Sanitize strings to prevent WIN1252 encoding crashes on local PostgreSQL
+    const sanitizeString = (str: string | null | undefined) => {
+      if (!str) return str;
+      // Remove characters outside the basic Latin-1 range which cause Postgres UTF8 -> WIN1252 mapping errors
+      return str.replace(/[^\x00-\xFF]/g, '');
+    };
+
     await prisma.browserActivityLog.create({
       data: {
         userId,
         domain: activity.domain,
         url: activity.url,
-        pageTitle: activity.pageTitle,
+        pageTitle: sanitizeString(activity.pageTitle) || 'Untitled',
         tabOpenedAt: new Date(activity.tabOpenedAt),
         tabClosedAt: activity.tabClosedAt ? new Date(activity.tabClosedAt) : null,
         durationSeconds: activity.durationSeconds,
         captureTier: activity.captureTier,
-        snapshotText: activity.snapshotText,
+        snapshotText: sanitizeString(activity.snapshotText),
         adapterPayload: activity.adapterPayload,
       },
     });
