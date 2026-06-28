@@ -81,35 +81,49 @@ extensionActivityRouter.post('/', requireExtensionAuth, async (req: Request, res
 
   let processedCount = 0;
 
-  for (const activity of activities) {
-    if (excludedDomains.includes(activity.domain)) {
-      continue; // Skip excluded domains
+  try {
+    for (const activity of activities) {
+      if (excludedDomains.includes(activity.domain)) {
+        continue; // Skip excluded domains
+      }
+
+      // Sanitize strings to prevent WIN1252 encoding crashes on local PostgreSQL
+      const sanitizeString = (str: string | null | undefined) => {
+        if (!str) return str;
+        // Remove characters outside the basic Latin-1 range which cause Postgres UTF8 -> WIN1252 mapping errors
+        return str.replace(/[^\x00-\xFF]/g, '');
+      };
+
+      let sanitizedPayload = activity.adapterPayload;
+      if (sanitizedPayload) {
+        try {
+          sanitizedPayload = JSON.parse(sanitizeString(JSON.stringify(sanitizedPayload)) || '{}');
+        } catch (e) {
+          sanitizedPayload = {};
+        }
+      }
+
+      await prisma.browserActivityLog.create({
+        data: {
+          userId,
+          domain: sanitizeString(activity.domain) || 'unknown',
+          url: sanitizeString(activity.url) || '',
+          pageTitle: sanitizeString(activity.pageTitle) || 'Untitled',
+          tabOpenedAt: new Date(activity.tabOpenedAt),
+          tabClosedAt: activity.tabClosedAt ? new Date(activity.tabClosedAt) : null,
+          durationSeconds: activity.durationSeconds,
+          captureTier: activity.captureTier,
+          snapshotText: sanitizeString(activity.snapshotText),
+          adapterPayload: sanitizedPayload,
+        },
+      });
+
+      processedCount++;
     }
 
-    // Sanitize strings to prevent WIN1252 encoding crashes on local PostgreSQL
-    const sanitizeString = (str: string | null | undefined) => {
-      if (!str) return str;
-      // Remove characters outside the basic Latin-1 range which cause Postgres UTF8 -> WIN1252 mapping errors
-      return str.replace(/[^\x00-\xFF]/g, '');
-    };
-
-    await prisma.browserActivityLog.create({
-      data: {
-        userId,
-        domain: activity.domain,
-        url: activity.url,
-        pageTitle: sanitizeString(activity.pageTitle) || 'Untitled',
-        tabOpenedAt: new Date(activity.tabOpenedAt),
-        tabClosedAt: activity.tabClosedAt ? new Date(activity.tabClosedAt) : null,
-        durationSeconds: activity.durationSeconds,
-        captureTier: activity.captureTier,
-        snapshotText: sanitizeString(activity.snapshotText),
-        adapterPayload: activity.adapterPayload,
-      },
-    });
-
-    processedCount++;
+    res.json({ message: 'Activity processed successfully', count: processedCount });
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to process extension activity payload');
+    res.status(500).json({ error: 'Failed to process some activities', count: processedCount });
   }
-
-  res.json({ message: 'Activity processed successfully', count: processedCount });
 });

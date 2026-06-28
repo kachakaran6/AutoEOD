@@ -48,8 +48,10 @@ function buildPrompt(
 ): string {
   const toneMap: Record<string, string> = {
     professional: 'formal business professional — suitable for a manager',
-    short: 'brief and terse — 1-2 sentences for summary, bullet points only',
-    detailed: 'detailed and granular — include repo names, file paths where relevant, more complete bullet points',
+    minimalist: 'brief and terse — highly focused on the core facts, short sentences',
+    modern: 'clear, approachable, and well-structured professional tone',
+    executive: 'highly formal, dense, and objective executive summary tone',
+    creative: 'friendly, modern, and engaging tone for a startup team',
   };
   const tone = toneMap[settings.reportTemplate] || toneMap.professional;
 

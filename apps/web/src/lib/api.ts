@@ -229,6 +229,7 @@ export interface ReportSummary {
   summary: string | null;
   generatedAt: string | null;
   sentAt: string | null;
+  errorMessage?: string | null;
 }
 
 export interface ReportEditData {

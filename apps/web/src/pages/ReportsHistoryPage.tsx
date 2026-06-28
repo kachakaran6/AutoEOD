@@ -57,17 +57,25 @@ export function ReportsHistoryPage() {
             <Link key={report.id} to={`/reports/${report.reportDate}`} className="block">
               <Card className="hover:border-primary/50 transition-colors group">
                 <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium text-base">
-                      {format(new Date(report.reportDate + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}
-                    </span>
-                    <span className="text-sm text-muted-foreground line-clamp-1 max-w-md">
-                      {report.summary || 'No summary available.'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <ReportStatusBadge status={report.status} />
-                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  <div className="flex flex-col gap-1 w-full">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-medium text-base">
+                        {format(new Date(report.reportDate + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}
+                      </span>
+                      <div className="flex items-center gap-4">
+                        <ReportStatusBadge status={report.status} />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      </div>
+                    </div>
+                    {report.errorMessage ? (
+                      <span className="text-sm text-destructive line-clamp-1 max-w-2xl mt-1 font-medium bg-destructive/10 px-2 py-0.5 rounded w-fit">
+                        Error: {report.errorMessage}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground line-clamp-1 max-w-2xl mt-1">
+                        {report.summary || 'No summary available.'}
+                      </span>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -45,6 +45,7 @@ export async function sendReportJob(data: SendReportJobData): Promise<void> {
       senderName: report.user.name,
       managerEmail: settings.managerEmail,
       ccEmails: settings.ccEmails || undefined,
+      template: settings.reportTemplate,
     });
 
     await prisma.report.update({

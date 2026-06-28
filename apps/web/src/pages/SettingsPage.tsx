@@ -1,9 +1,10 @@
 // apps/web/src/pages/SettingsPage.tsx
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Loader2, Info, CheckCircle2, XCircle } from 'lucide-react'
+import { Save, Loader2, Info, CheckCircle2, XCircle, Eye } from 'lucide-react'
 import { settings as settingsApi, extensionSettings as extSettingsApi, getAccessToken } from '@/lib/api'
 import type { UserSettings, UserExtensionSettings } from '@/lib/api'
+import { renderProfessional, renderMinimalist, renderModern, renderExecutive, renderCreative } from '@/lib/email-templates'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -367,21 +368,50 @@ export function SettingsPage() {
           <CardDescription>Customize how the AI writes your reports</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="setting-template">Report tone</Label>
-            <Select
-              value={form.reportTemplate || 'professional'}
-              onValueChange={(v) => updateField('reportTemplate', v)}
-            >
-              <SelectTrigger id="setting-template">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="professional">Professional — formal business tone</SelectItem>
-                <SelectItem value="short">Short — brief and terse, 1-2 sentences</SelectItem>
-                <SelectItem value="detailed">Detailed — granular, includes repo/file names</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <Label>Email Template Design</Label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <TemplateCard 
+                id="professional" 
+                title="Professional" 
+                description="Clean, formal, standard"
+                isSelected={(form.reportTemplate || 'professional') === 'professional'}
+                onClick={() => updateField('reportTemplate', 'professional')}
+                previewCss={<PreviewProfessional />}
+              />
+              <TemplateCard 
+                id="minimalist" 
+                title="Minimalist" 
+                description="Monochrome, typography"
+                isSelected={form.reportTemplate === 'minimalist'}
+                onClick={() => updateField('reportTemplate', 'minimalist')}
+                previewCss={<PreviewMinimalist />}
+              />
+              <TemplateCard 
+                id="modern" 
+                title="Modern" 
+                description="Rounded, colorful badges"
+                isSelected={form.reportTemplate === 'modern'}
+                onClick={() => updateField('reportTemplate', 'modern')}
+                previewCss={<PreviewModern />}
+              />
+              <TemplateCard 
+                id="executive" 
+                title="Executive" 
+                description="High contrast, formal navy"
+                isSelected={form.reportTemplate === 'executive'}
+                onClick={() => updateField('reportTemplate', 'executive')}
+                previewCss={<PreviewExecutive />}
+              />
+              <TemplateCard 
+                id="creative" 
+                title="Creative" 
+                description="Vibrant gradients, playful"
+                isSelected={form.reportTemplate === 'creative'}
+                onClick={() => updateField('reportTemplate', 'creative')}
+                previewCss={<PreviewCreative />}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -475,3 +505,160 @@ export function SettingsPage() {
     </div>
   )
 }
+
+const dummyReport = {
+  reportDate: new Date().toLocaleDateString(),
+  summary: "Completed integration of the new email templates and fixed the extension API crash issue. Everything is running smoothly.",
+  completedItems: ["Added 5 new visual email templates", "Fixed API encoding crash (22P05)", "Updated Settings UI with visual previews"],
+  inProgressItems: ["Reviewing mobile responsiveness of settings page", "Writing unit tests for template renderers"],
+  blockers: "Waiting on design assets for the new logo.",
+  tomorrowPlan: "Will deploy the changes to staging and begin monitoring worker stability.",
+};
+
+function getPreviewHtml(template: string, senderName: string) {
+  switch (template) {
+    case 'minimalist': return renderMinimalist(dummyReport, senderName);
+    case 'modern': return renderModern(dummyReport, senderName);
+    case 'executive': return renderExecutive(dummyReport, senderName);
+    case 'creative': return renderCreative(dummyReport, senderName);
+    default: return renderProfessional(dummyReport, senderName);
+  }
+}
+
+function TemplateCard({ id, title, description, isSelected, onClick, previewCss }: any) {
+  const html = getPreviewHtml(id, "Jane Doe");
+  return (
+    <Dialog>
+      <div 
+        className={`relative rounded-xl border-2 overflow-hidden transition-all duration-200 ${isSelected ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-border hover:border-primary/50 bg-card'}`}
+      >
+        <div 
+           className="h-32 w-full bg-muted/30 p-2 flex items-center justify-center cursor-pointer relative group"
+           onClick={onClick}
+        >
+          <div className="w-[120px] bg-white border border-border shadow-sm rounded-md overflow-hidden transform scale-110 origin-center transition-transform pointer-events-none">
+             {previewCss}
+          </div>
+          <DialogTrigger asChild>
+            <Button 
+               variant="secondary" 
+               size="icon" 
+               className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border"
+               onClick={(e) => e.stopPropagation()}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+        </div>
+        <div className="p-3 border-t border-border cursor-pointer" onClick={onClick}>
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-semibold text-sm">{title}</p>
+            {isSelected && <CheckCircle2 className="w-4 h-4 text-primary" />}
+          </div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden bg-slate-100 gap-0">
+        <DialogHeader className="px-6 py-4 border-b shrink-0 bg-white">
+          <DialogTitle>{title} Template Preview</DialogTitle>
+          <DialogDescription>This is exactly how your email will look in the recipient's inbox.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 w-full flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl h-full bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+            <iframe 
+              srcDoc={html} 
+              className="w-full h-full border-0"
+              title={`${title} Preview`}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const PreviewProfessional = () => (
+  <div className="p-2 space-y-1 bg-white">
+    <div className="h-2 w-16 bg-slate-800 rounded-sm mb-2" />
+    <div className="h-1 w-10 bg-slate-400 rounded-sm mb-3" />
+    <div className="p-1.5 bg-slate-100 rounded-sm space-y-1 mb-2">
+      <div className="h-0.5 w-full bg-slate-300 rounded-full" />
+      <div className="h-0.5 w-4/5 bg-slate-300 rounded-full" />
+    </div>
+    <div className="h-1 w-12 bg-slate-800 rounded-sm" />
+    <div className="flex items-center gap-1 mt-1"><div className="h-0.5 w-0.5 rounded-full bg-slate-400"/><div className="h-0.5 w-16 bg-slate-300 rounded-full"/></div>
+    <div className="flex items-center gap-1"><div className="h-0.5 w-0.5 rounded-full bg-slate-400"/><div className="h-0.5 w-12 bg-slate-300 rounded-full"/></div>
+  </div>
+);
+
+const PreviewMinimalist = () => (
+  <div className="p-2 space-y-1.5 font-serif border-b border-black bg-white">
+    <div className="border-b border-black pb-1 mb-1">
+      <div className="h-2 w-14 bg-black rounded-sm mb-0.5" />
+      <div className="h-1 w-8 bg-gray-500 rounded-sm" />
+    </div>
+    <div className="h-0.5 w-full bg-gray-300 rounded-full" />
+    <div className="h-0.5 w-full bg-gray-300 rounded-full" />
+    <div className="h-1.5 w-10 bg-black rounded-sm mt-2" />
+    <div className="flex items-center gap-1 mt-1"><div className="h-0.5 w-0.5 rounded-full bg-black"/><div className="h-0.5 w-14 bg-gray-400 rounded-full"/></div>
+  </div>
+);
+
+const PreviewModern = () => (
+  <div className="p-2 space-y-1.5 bg-slate-50">
+    <div className="flex flex-col items-center mb-2">
+      <div className="h-1.5 w-8 bg-black rounded-full mb-1" />
+      <div className="h-2 w-12 bg-slate-800 rounded-sm mb-0.5" />
+      <div className="h-1 w-6 bg-slate-400 rounded-sm" />
+    </div>
+    <div className="p-1 bg-white border border-slate-200 rounded-md shadow-sm mb-2">
+      <div className="h-0.5 w-full bg-slate-300 rounded-full" />
+    </div>
+    <div className="h-1.5 w-10 bg-green-200 rounded-sm" />
+    <div className="p-1 bg-white border border-slate-200 rounded-md shadow-sm">
+      <div className="flex items-center gap-1"><div className="h-0.5 w-0.5 rounded-full bg-slate-400"/><div className="h-0.5 w-14 bg-slate-300 rounded-full"/></div>
+    </div>
+  </div>
+);
+
+const PreviewExecutive = () => (
+  <div className="p-2 space-y-1 bg-white">
+    <div className="border-b-2 border-blue-900 pb-1 mb-2">
+      <div className="h-1.5 w-16 bg-blue-900 rounded-sm mb-1" />
+      <div className="flex justify-between">
+        <div className="h-0.5 w-8 bg-gray-400 rounded-sm" />
+        <div className="h-0.5 w-6 bg-gray-400 rounded-sm" />
+      </div>
+    </div>
+    <div className="h-1 w-12 bg-blue-900 rounded-sm" />
+    <div className="h-0.5 w-full bg-gray-300 rounded-full" />
+    <div className="h-0.5 w-5/6 bg-gray-300 rounded-full mb-2" />
+    <div className="flex gap-1 border-t border-gray-200 pt-1">
+      <div className="flex-1">
+        <div className="h-1 w-10 bg-blue-900 rounded-sm mb-1" />
+        <div className="h-0.5 w-12 bg-gray-400 rounded-sm" />
+      </div>
+      <div className="flex-1 border-l border-gray-200 pl-1">
+        <div className="h-1 w-8 bg-blue-900 rounded-sm mb-1" />
+        <div className="h-0.5 w-10 bg-gray-400 rounded-sm" />
+      </div>
+    </div>
+  </div>
+);
+
+const PreviewCreative = () => (
+  <div className="p-2 space-y-1 bg-white">
+    <div className="p-1.5 bg-gradient-to-br from-purple-500 to-blue-500 rounded-md mb-2">
+      <div className="h-0.5 w-8 bg-white/60 rounded-sm mb-1" />
+      <div className="h-2 w-14 bg-white rounded-sm mb-1" />
+      <div className="h-1 w-6 bg-white/80 rounded-full" />
+    </div>
+    <div className="h-0.5 w-full bg-gray-300 rounded-full" />
+    <div className="h-0.5 w-4/5 bg-gray-300 rounded-full mb-2" />
+    <div className="flex items-center gap-1 mb-0.5">
+      <div className="h-1 w-1 rounded-full bg-black" />
+      <div className="h-1.5 w-10 bg-black rounded-sm" />
+    </div>
+    <div className="flex items-center gap-1"><div className="h-0.5 w-1 bg-purple-500 rounded-sm"/><div className="h-0.5 w-14 bg-gray-300 rounded-full"/></div>
+  </div>
+);

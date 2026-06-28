@@ -187,6 +187,7 @@ reportsRouter.get('/', requireAuth, async (req: Request, res: Response): Promise
       summary: true,
       generatedAt: true,
       sentAt: true,
+      errorMessage: true,
     },
   });
 
