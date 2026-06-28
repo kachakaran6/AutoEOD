@@ -1,6 +1,6 @@
 // apps/web/src/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, GitBranch, Puzzle, Settings, Zap, LogOut, Activity } from 'lucide-react'
+import { LayoutDashboard, GitBranch, Puzzle, Settings, Zap, LogOut, Activity, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/activity-log', label: 'Activity Radar', icon: Activity },
+  { to: '/history', label: 'History', icon: FileText },
   { to: '/timeline', label: 'Timeline', icon: GitBranch },
   { to: '/integrations', label: 'Integrations', icon: Puzzle },
   { to: '/settings', label: 'Settings', icon: Settings },

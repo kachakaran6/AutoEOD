@@ -14,6 +14,7 @@ import { IntegrationsPage } from '@/pages/IntegrationsPage'
 import { ReportPage } from '@/pages/ReportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
+import { ReportsHistoryPage } from '@/pages/ReportsHistoryPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ export default function App() {
                 <Route path="/timeline" element={<TimelinePage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
                 <Route path="/reports/:date" element={<ReportPage />} />
+                <Route path="/history" element={<ReportsHistoryPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

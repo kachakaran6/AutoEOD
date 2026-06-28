@@ -69,13 +69,23 @@ export async function sendReportJob(data: SendReportJobData): Promise<void> {
   } catch (err) {
     logger.error({ err, userId, reportId }, 'Failed to auto-send report');
     
+    const errorMessage = err instanceof Error ? err.message : 'Failed to auto-send email';
+
+    await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status: 'send_failed',
+        errorMessage,
+      },
+    });
+
     // Optionally create a failure notification
     await prisma.notification.create({
       data: {
         userId,
         type: 'report_failed',
         title: 'Failed to auto-send report',
-        message: `We tried to auto-send your report for ${report.reportDate} but encountered an error. Please send it manually.`,
+        message: `We tried to auto-send your report for ${report.reportDate} but encountered an error: ${errorMessage}. Please send it manually.`,
         reportId: report.id,
       },
     });

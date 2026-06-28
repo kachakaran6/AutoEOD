@@ -338,7 +338,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     await sendReportQueue.add(
       'send-report',
       { userId, reportId: report.id },
-      { delay, jobId: `send-${report.id}` }
+      { delay, jobId: `send-${report.id}-${Date.now()}` }
     );
     
     logger.info({ userId, reportId: report.id, delay }, 'Enqueued auto-send job');

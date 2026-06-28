@@ -28,19 +28,17 @@ export async function scheduleDispatcher(): Promise<void> {
     const nowHHMM = nowInTz.toFormat('HH:mm');
     const reportDate = nowInTz.toISODate()!;
 
-    // Check if current time matches the report time (within a 5-minute window)
     // Parse times to compare
     const [rH, rM] = reportTime.split(':').map(Number);
     const [nH, nM] = nowHHMM.split(':').map(Number);
-    // We want generation to start 5 minutes BEFORE reportTime.
+
+    // We want generation to start AT the reportTime.
     const reportMinutes = rH * 60 + rM;
-    const targetGenerationMinutes = (reportMinutes - 5 + 1440) % 1440;
-    
     const nowMinutes = nH * 60 + nM;
 
-    // Match if within the 5-minute window [targetGenerationMinutes, targetGenerationMinutes+5)
+    // Match if within a 5-minute window [reportMinutes, reportMinutes + 5)
     // Use modulo difference to handle wraparound (e.g., target 23:58, now 00:02)
-    const diff = (nowMinutes - targetGenerationMinutes + 1440) % 1440;
+    const diff = (nowMinutes - reportMinutes + 1440) % 1440;
     if (diff >= 5) continue;
 
     // Check if a report already exists for today (to avoid double-triggering)
@@ -49,9 +47,9 @@ export async function scheduleDispatcher(): Promise<void> {
       select: { id: true, status: true },
     });
 
-    // Skip if a non-failed report already exists
-    if (existing && existing.status !== 'failed') {
-      logger.debug({ userId, reportDate, status: existing.status }, 'Report already exists, skipping');
+    // Skip if the report has already been successfully sent today
+    if (existing && existing.status === 'sent') {
+      logger.debug({ userId, reportDate, status: existing.status }, 'Report already sent, skipping');
       continue;
     }
 

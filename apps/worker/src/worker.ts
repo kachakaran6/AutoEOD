@@ -28,8 +28,8 @@ async function registerRepeatableJobs(): Promise<void> {
     opts: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   });
 
-  // Schedule dispatcher: every 5 minutes
-  await scheduleDispatcherQueue.upsertJobScheduler('schedule-dispatcher', { every: 5 * 60 * 1000 }, {
+  // Schedule dispatcher: every 1 minute
+  await scheduleDispatcherQueue.upsertJobScheduler('schedule-dispatcher', { every: 60 * 1000 }, {
     name: 'dispatch',
     data: {},
     opts: { attempts: 2, backoff: { type: 'fixed', delay: 5000 } },

@@ -101,6 +101,7 @@ export function ReportPage() {
 
   const isSent = report?.status === 'sent'
   const isFailed = report?.status === 'failed'
+  const isSendFailed = report?.status === 'send_failed'
 
   if (isLoading) {
     return (
@@ -165,6 +166,19 @@ export function ReportPage() {
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium">Report generation failed</p>
+              <p className="text-xs text-muted-foreground mt-1">{report.errorMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Send Failed error */}
+      {isSendFailed && report.errorMessage && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="flex items-start gap-3 py-4">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Failed to auto-send report</p>
               <p className="text-xs text-muted-foreground mt-1">{report.errorMessage}</p>
             </div>
           </CardContent>
@@ -409,7 +423,8 @@ function ReportStatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'draft': return <Badge variant="secondary">Draft</Badge>
     case 'sent': return <Badge variant="success" className="gap-1"><CheckCircle2 className="h-3 w-3" />Sent</Badge>
-    case 'failed': return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" />Failed</Badge>
+    case 'failed': return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" />Gen Failed</Badge>
+    case 'send_failed': return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" />Send Failed</Badge>
     default: return <Badge variant="outline">{status}</Badge>
   }
 }
