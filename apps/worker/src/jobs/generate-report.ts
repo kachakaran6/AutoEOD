@@ -69,17 +69,20 @@ function buildPrompt(
           .map((e, i) => {
             let desc = `${i + 1}. [${e.source.toUpperCase()}: ${e.type.toUpperCase()}] ${e.title} — repo: ${e.repo || 'N/A'} — at ${DateTime.fromJSDate(e.occurredAt).toFormat('HH:mm')} — ${e.url}`;
             if (e.source === 'chatgpt' && e.rawPayload?.messages) {
-              const excerpts = e.rawPayload.messages.map((m: any) => `${m.role}: ${m.excerpt}`).join('\n');
+              const msgs = e.rawPayload.messages.slice(-5); // Only take last 5 messages
+              const excerpts = msgs.map((m: any) => `${m.role}: ${m.excerpt?.substring(0, 150) || ''}`).join('\n');
               desc += `\n   Excerpts:\n   ${excerpts}`;
             } else if (e.source === 'browser') {
               if (e.rawPayload?.durationSeconds) {
                 desc += ` (Duration: ${Math.floor(e.rawPayload.durationSeconds / 60)}m ${e.rawPayload.durationSeconds % 60}s)`;
               }
               if (e.rawPayload?.snapshotText) {
-                desc += `\n   Page Snippet:\n   ${e.rawPayload.snapshotText}`;
+                const snippet = e.rawPayload.snapshotText.substring(0, 300);
+                desc += `\n   Page Snippet:\n   ${snippet}${e.rawPayload.snapshotText.length > 300 ? '...' : ''}`;
               }
               if (e.rawPayload?.adapterPayload?.messages) {
-                const excerpts = e.rawPayload.adapterPayload.messages.map((m: any) => `${m.role}: ${m.excerpt}`).join('\n');
+                const msgs = e.rawPayload.adapterPayload.messages.slice(-5);
+                const excerpts = msgs.map((m: any) => `${m.role}: ${m.excerpt?.substring(0, 150) || ''}`).join('\n');
                 desc += `\n   Excerpts:\n   ${excerpts}`;
               }
             }
