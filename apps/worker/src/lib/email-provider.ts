@@ -95,7 +95,8 @@ export class EmailProviderService {
         throw new Error('Zoho OAuth environment variables not configured');
       }
 
-      const res = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+      const oauthDomain = process.env.ZOHO_OAUTH_DOMAIN || 'https://accounts.zoho.com';
+      const res = await fetch(`${oauthDomain}/oauth/v2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -166,9 +167,8 @@ export class EmailProviderService {
 
   private async sendViaZoho(accessToken: string, payload: Omit<EmailPayload, 'cc'> & { senderName: string, senderEmail: string, cc: string }): Promise<void> {
     // Determine the Zoho account ID by checking profiles first
-    // In a real production system, you'd store the accountId when connecting the user.
-    // Here we fetch it quickly.
-    const accountRes = await fetch('https://mail.zoho.com/api/accounts', {
+    const apiDomain = process.env.ZOHO_API_DOMAIN || 'https://mail.zoho.com';
+    const accountRes = await fetch(`${apiDomain}/api/accounts`, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     });
     
@@ -196,7 +196,8 @@ export class EmailProviderService {
       messageData.ccAddress = payload.cc;
     }
 
-    const sendRes = await fetch(`https://mail.zoho.com/api/accounts/${accountId}/messages`, {
+    const apiDomain = process.env.ZOHO_API_DOMAIN || 'https://mail.zoho.com';
+    const sendRes = await fetch(`${apiDomain}/api/accounts/${accountId}/messages`, {
       method: 'POST',
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
