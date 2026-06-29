@@ -290,7 +290,7 @@ function renderCreative(report: Report, senderName: string): string {
 function renderQwintsoft(report: Report, senderName: string): string {
   const formatList = (items: string[] | null | undefined) => {
     if (!items || !items.length) return 'None';
-    return items.map(i => escapeHtml(i)).join('\n');
+    return items.map(i => `• ${escapeHtml(i)}`).join('\n');
   };
 
   const completed = formatList(report.completedItems as string[]);
@@ -317,7 +317,10 @@ Plan for tomorrow:
 ${tomorrow}
 
 Thanks,
-${escapeHtml(senderName)}</body>
+${escapeHtml(senderName)}
+
+---
+Mail sent through AutoEOD</body>
 </html>`;
 }
 
