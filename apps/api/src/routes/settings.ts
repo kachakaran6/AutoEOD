@@ -26,7 +26,7 @@ const SettingsSchema = z.object({
   autoSend: z.boolean().optional(),
   managerEmail: z.string().email().nullable().optional(),
   ccEmails: z.string().nullable().optional(),
-  reportTemplate: z.enum(['professional', 'minimalist', 'modern', 'executive', 'creative']).optional(),
+  reportTemplate: z.enum(['professional', 'minimalist', 'modern', 'executive', 'creative', 'qwintsoft']).optional(),
   reportLanguage: z.enum(['english', 'hindi', 'gujarati']).optional(),
   chatgptCaptureContent: z.boolean().optional(),
   includeRadarLogs: z.boolean().optional(),
