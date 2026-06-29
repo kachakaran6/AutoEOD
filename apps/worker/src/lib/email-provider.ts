@@ -196,7 +196,6 @@ export class EmailProviderService {
       messageData.ccAddress = payload.cc;
     }
 
-    const apiDomain = process.env.ZOHO_API_DOMAIN || 'https://mail.zoho.com';
     const sendRes = await fetch(`${apiDomain}/api/accounts/${accountId}/messages`, {
       method: 'POST',
       headers: {
