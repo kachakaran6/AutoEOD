@@ -111,7 +111,8 @@ zohoAuthRouter.get('/callback', async (req: Request, res: Response): Promise<voi
 
     if (!tokenData.access_token || tokenData.error) {
       logger.error({ tokenData, userId }, 'Zoho token exchange failed');
-      res.redirect(`${frontendUrl}/settings?error=token_exchange_failed`);
+      const errorMsg = tokenData.error ? `&reason=${encodeURIComponent(tokenData.error)}` : '';
+      res.redirect(`${frontendUrl}/settings?error=token_exchange_failed${errorMsg}`);
       return;
     }
 

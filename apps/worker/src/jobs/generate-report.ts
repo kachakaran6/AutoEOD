@@ -38,8 +38,8 @@ const ReportOutputSchema = z.object({
 
 type ReportOutput = z.infer<typeof ReportOutputSchema>;
 
-// Model preference — use gpt-4o or fall back gracefully
-const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
+// Model preference — use gpt-4o-mini or fall back gracefully
+const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 function buildPrompt(
   events: Array<{ source: string; type: string; title: string; repo: string; url: string; occurredAt: Date; rawPayload: any }>,
