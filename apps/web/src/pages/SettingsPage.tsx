@@ -410,6 +410,7 @@ export function SettingsPage() {
                 isSelected={form.reportTemplate === 'creative'}
                 onClick={() => updateField('reportTemplate', 'creative')}
                 previewCss={<PreviewCreative />}
+              />
               <TemplateCard 
                 id="qwintsoft" 
                 title="Qwintsoft" 
