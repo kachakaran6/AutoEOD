@@ -30,8 +30,8 @@ function getOpenAI(): OpenAI {
 // Zod schema for AI output validation
 const ReportOutputSchema = z.object({
   summary: z.string().min(1).max(2000),
-  completedItems: z.array(z.string()).max(20),
-  inProgressItems: z.array(z.string()).max(20),
+  completedItems: z.array(z.string()).max(100),
+  inProgressItems: z.array(z.string()).max(100),
   blockers: z.string().nullable(),
   tomorrowPlan: z.string().max(1000),
 });
