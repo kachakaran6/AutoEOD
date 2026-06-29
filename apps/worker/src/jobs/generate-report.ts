@@ -67,33 +67,29 @@ function buildPrompt(
       ? 'No activity was recorded today.'
       : events
           .map((e, i) => {
-            let desc = `${i + 1}. [${e.source.toUpperCase()}: ${e.type.toUpperCase()}] ${e.title} — repo: ${e.repo || 'N/A'} — at ${DateTime.fromJSDate(e.occurredAt).toFormat('HH:mm')} — ${e.url}`;
+            // Highly compressed format to save tokens while keeping ALL events
+            const time = DateTime.fromJSDate(e.occurredAt).toFormat('HH:mm');
+            let desc = `[${time}] ${e.source.toUpperCase()}: ${e.title}`;
+            
+            if (e.repo) desc += ` (Repo: ${e.repo})`;
+            if (e.source === 'github') desc += ` (URL: ${e.url})`;
+
             if (e.source === 'chatgpt' && e.rawPayload?.messages) {
-              const msgs = e.rawPayload.messages.slice(-3); // Only take last 3 messages
-              const excerpts = msgs.map((m: any) => `${m.role}: ${m.excerpt?.substring(0, 100) || ''}`).join('\n');
-              desc += `\n   Excerpts:\n   ${excerpts}`;
-            } else if (e.source === 'browser') {
-              if (e.rawPayload?.durationSeconds) {
-                desc += ` (Duration: ${Math.floor(e.rawPayload.durationSeconds / 60)}m ${e.rawPayload.durationSeconds % 60}s)`;
-              }
-              if (e.rawPayload?.snapshotText) {
-                const snippet = e.rawPayload.snapshotText.substring(0, 100);
-                desc += `\n   Page Snippet:\n   ${snippet}${e.rawPayload.snapshotText.length > 100 ? '...' : ''}`;
-              }
-              if (e.rawPayload?.adapterPayload?.messages) {
-                const msgs = e.rawPayload.adapterPayload.messages.slice(-2);
-                const excerpts = msgs.map((m: any) => `${m.role}: ${m.excerpt?.substring(0, 100) || ''}`).join('\n');
-                desc += `\n   Excerpts:\n   ${excerpts}`;
-              }
+              const msgs = e.rawPayload.messages.slice(-2); // Only last 2
+              const excerpts = msgs.map((m: any) => `${m.role}: ${m.excerpt?.substring(0, 80) || ''}`).join(' | ');
+              desc += `\n  -> ${excerpts}`;
+            } else if (e.source === 'browser' && e.rawPayload?.durationSeconds) {
+              const mins = Math.floor(e.rawPayload.durationSeconds / 60);
+              const secs = e.rawPayload.durationSeconds % 60;
+              if (mins > 0 || secs > 30) desc += ` (${mins}m ${secs}s)`;
             }
             return desc;
           })
-          .join('\n\n');
+          .join('\n');
 
-  // Hard limit to prevent exceeding Groq 12,000 TPM limit
-  // 30,000 characters is roughly 7,500 tokens
-  if (eventsText.length > 30000) {
-    eventsText = eventsText.substring(0, 30000) + '\n\n...[ADDITIONAL ACTIVITY TRUNCATED DUE TO SIZE LIMIT]...';
+  // We still keep a safety net, but increased to 40,000 chars since it's denser
+  if (eventsText.length > 40000) {
+    eventsText = eventsText.substring(0, 40000) + '\n\n...[TRUNCATED]...';
   }
 
   return `You are an AI assistant that generates daily EOD (End-of-Day) work reports for software engineers.
