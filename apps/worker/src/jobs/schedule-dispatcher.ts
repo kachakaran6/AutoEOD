@@ -47,11 +47,7 @@ export async function scheduleDispatcher(): Promise<void> {
       select: { id: true, status: true },
     });
 
-    // Skip if the report has already been successfully sent today
-    if (existing && existing.status === 'sent') {
-      logger.debug({ userId, reportDate, status: existing.status }, 'Report already sent, skipping');
-      continue;
-    }
+    // We removed the 'already sent' skipping block here to allow multiple reports per day if needed.
 
     // Enqueue generation
     const jobId = `scheduled-${userId}-${reportDate}-${reportTime.replace(':', '')}`;

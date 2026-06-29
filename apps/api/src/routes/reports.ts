@@ -80,10 +80,7 @@ reportsRouter.patch('/:id', requireAuth, async (req: Request, res: Response): Pr
     return;
   }
 
-  if (report.status === 'sent') {
-    res.status(400).json({ error: 'Cannot edit a report that has already been sent' });
-    return;
-  }
+  // Allow editing even if already sent
 
   const updated = await prisma.report.update({
     where: { id },
@@ -125,10 +122,7 @@ reportsRouter.post('/:id/send', requireAuth, async (req: Request, res: Response)
     return;
   }
 
-  if (report.status === 'sent') {
-    res.status(400).json({ error: 'Report has already been sent' });
-    return;
-  }
+  // User wants to be able to edit and send again freely, so we removed the status === 'sent' blocks.
 
   const settings = await prisma.userSettings.findUnique({ where: { userId } });
   if (!settings?.managerEmail) {
