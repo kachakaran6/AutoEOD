@@ -14,10 +14,12 @@ function getZohoConfig() {
   const clientId = process.env.ZOHO_CLIENT_ID;
   const clientSecret = process.env.ZOHO_CLIENT_SECRET;
   const callbackUrl = process.env.ZOHO_CALLBACK_URL;
+  const oauthDomain = process.env.ZOHO_OAUTH_DOMAIN || 'https://accounts.zoho.com';
+  const apiDomain = process.env.ZOHO_API_DOMAIN || 'https://mail.zoho.com';
   if (!clientId || !clientSecret || !callbackUrl) {
     throw new Error('Zoho OAuth environment variables not configured');
   }
-  return { clientId, clientSecret, callbackUrl };
+  return { clientId, clientSecret, callbackUrl, oauthDomain, apiDomain };
 }
 
 // ── GET /api/auth/zoho/connect ────────────────────────────────────────────────
@@ -28,7 +30,7 @@ zohoAuthRouter.get('/connect', (req: Request, res: Response, next): void => {
   }
   requireAuth(req, res, next);
 }, (req: Request, res: Response): void => {
-  const { clientId, callbackUrl } = getZohoConfig();
+  const { clientId, callbackUrl, oauthDomain } = getZohoConfig();
   const state = crypto.randomBytes(32).toString('hex');
 
   res.cookie(ZOHO_STATE_COOKIE, JSON.stringify({ state, userId: req.userId }), {
@@ -49,7 +51,7 @@ zohoAuthRouter.get('/connect', (req: Request, res: Response, next): void => {
     prompt: 'consent',
   });
 
-  res.redirect(`https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`);
+  res.redirect(`${oauthDomain}/oauth/v2/auth?${params.toString()}`);
 });
 
 // ── GET /api/auth/zoho/callback ───────────────────────────────────────────────
@@ -83,12 +85,12 @@ zohoAuthRouter.get('/callback', async (req: Request, res: Response): Promise<voi
 
   res.clearCookie(ZOHO_STATE_COOKIE, { path: '/api/auth/zoho' });
 
-  const { clientId, clientSecret, callbackUrl } = getZohoConfig();
+  const { clientId, clientSecret, callbackUrl, oauthDomain, apiDomain } = getZohoConfig();
   const userId = cookieData.userId;
 
   try {
     // Exchange code for tokens
-    const tokenRes = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+    const tokenRes = await fetch(`${oauthDomain}/oauth/v2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -114,7 +116,7 @@ zohoAuthRouter.get('/callback', async (req: Request, res: Response): Promise<voi
     }
 
     // Fetch user account info (Zoho Accounts API)
-    const accountRes = await fetch('https://mail.zoho.com/api/accounts', {
+    const accountRes = await fetch(`${apiDomain}/api/accounts`, {
       headers: { Authorization: `Zoho-oauthtoken ${tokenData.access_token}` },
     });
     const accountData = (await accountRes.json()) as any;
