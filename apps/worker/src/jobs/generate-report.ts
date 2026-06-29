@@ -271,7 +271,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
           userId,
           type: 'report_failed',
           title: 'Report generation failed',
-          message: `Your EOD report for ${reportDate} could not be generated. Please try again.`,
+          message: `Your EOD report for ${reportDate} could not be generated. Error: ${secondErr instanceof Error ? secondErr.message : 'Unknown'}. Please try again.`,
           reportId: undefined,
         },
       });
