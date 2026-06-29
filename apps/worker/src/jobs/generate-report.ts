@@ -92,34 +92,35 @@ function buildPrompt(
     eventsText = eventsText.substring(0, 40000) + '\n\n...[TRUNCATED]...';
   }
 
-  return `You are an AI assistant that generates daily EOD (End-of-Day) work reports for software engineers.
+  return `You are an AI assistant that drafts daily EOD (End-of-Day) work reports on behalf of a software engineer.
 
 Today's date: ${reportDate}
 Work hours: ${settings.workStartTime} to ${settings.workEndTime}
 Tone: ${tone}
 Language: Write ALL output fields in ${language}
 
-Below is the complete list of activity recorded for this engineer today:
+Below is the complete list of activity recorded for my work today:
 
 ${eventsText}
 
 Instructions:
-1. Use ONLY the events listed above as your source of truth. Do NOT invent commits, PRs, or work that is not listed.
-2. Group related events into human-readable accomplishments (e.g., multiple commits toward one PR → one bullet).
-3. Distinguish "completed" (merged PRs, closed issues, completed commits) from "in progress" (open PRs, recent commits without a merge).
-4. Some activity entries are from ChatGPT conversations or general browser activity (source: 'chatgpt' or 'browser'). Use conversation titles, page titles, and snippets to understand what topics or problems the user was researching/debugging. Treat these as corroborating evidence or exploration. Never claim a ChatGPT conversation or a viewed webpage constitutes 'completed work' on its own unless explicitly directed. Frame them as research/exploration assistance.
-5. The "summary" field should be 2-3 natural sentences (or 1-2 if tone is "short") summarizing the day's work.
-6. Leave "blockers" as null if nothing in the events suggests a blocker. Never invent a blocker.
-7. Write "tomorrowPlan" as a reasonable inference from open/in-progress items. Frame it as a suggestion, not a fact.
-8. If no activity was recorded, set summary to "No tracked activity today." and leave completedItems and inProgressItems empty.
+1. Write the report from the FIRST-PERSON perspective ("I", "my"). It should read exactly like an email I am writing to my manager. Do NOT use third-person ("the engineer worked on...").
+2. Use ONLY the events listed above as your source of truth. Do NOT invent commits, PRs, or work that is not listed.
+3. Group related events into human-readable accomplishments (e.g., multiple commits toward one PR → one bullet).
+4. Distinguish "completed" (merged PRs, closed issues, completed commits) from "in progress" (open PRs, recent commits without a merge).
+5. Some activity entries are from ChatGPT conversations or general browser activity (source: 'chatgpt' or 'browser'). Use conversation titles, page titles, and snippets to understand what topics or problems I was researching/debugging. Frame them as my research/exploration.
+6. The "summary" field should be 2-3 natural sentences (or 1-2 if tone is "short") summarizing my day's work.
+7. Leave "blockers" as null if nothing in the events suggests a blocker. Never invent a blocker.
+8. Write "tomorrowPlan" as a reasonable inference from open/in-progress items. Frame it as what I plan to do tomorrow.
+9. If no activity was recorded, set summary to "No tracked activity today." and leave completedItems and inProgressItems empty.
 
 Return a JSON object with exactly this structure:
 {
-  "summary": "string — 2-3 sentences summarizing the day",
+  "summary": "string — 2-3 sentences summarizing my day",
   "completedItems": ["string", ...],
   "inProgressItems": ["string", ...],
   "blockers": "string or null",
-  "tomorrowPlan": "string — plan for tomorrow based on open work"
+  "tomorrowPlan": "string — what I plan to do tomorrow"
 }`;
 }
 

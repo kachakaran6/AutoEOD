@@ -146,6 +146,7 @@ reportsRouter.post('/:id/send', requireAuth, async (req: Request, res: Response)
       senderName: user?.name || 'Team Member',
       managerEmail: settings.managerEmail,
       ccEmails: settings.ccEmails || undefined,
+      template: settings.reportTemplate,
     });
 
     const updated = await prisma.report.update({

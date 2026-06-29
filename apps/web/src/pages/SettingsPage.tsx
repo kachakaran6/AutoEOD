@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Loader2, Info, CheckCircle2, XCircle, Eye } from 'lucide-react'
 import { settings as settingsApi, extensionSettings as extSettingsApi, getAccessToken } from '@/lib/api'
 import type { UserSettings, UserExtensionSettings } from '@/lib/api'
-import { renderProfessional, renderMinimalist, renderModern, renderExecutive, renderCreative } from '@/lib/email-templates'
+import { renderProfessional, renderMinimalist, renderModern, renderExecutive, renderCreative, renderQwintsoft } from '@/lib/email-templates'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -410,6 +410,13 @@ export function SettingsPage() {
                 isSelected={form.reportTemplate === 'creative'}
                 onClick={() => updateField('reportTemplate', 'creative')}
                 previewCss={<PreviewCreative />}
+              <TemplateCard 
+                id="qwintsoft" 
+                title="Qwintsoft" 
+                description="Plain text daily updates"
+                isSelected={form.reportTemplate === 'qwintsoft'}
+                onClick={() => updateField('reportTemplate', 'qwintsoft')}
+                previewCss={<PreviewQwintsoft />}
               />
             </div>
           </div>
@@ -521,6 +528,7 @@ function getPreviewHtml(template: string, senderName: string) {
     case 'modern': return renderModern(dummyReport, senderName);
     case 'executive': return renderExecutive(dummyReport, senderName);
     case 'creative': return renderCreative(dummyReport, senderName);
+    case 'qwintsoft': return renderQwintsoft(dummyReport, senderName);
     default: return renderProfessional(dummyReport, senderName);
   }
 }
@@ -660,5 +668,16 @@ const PreviewCreative = () => (
       <div className="h-1.5 w-10 bg-black rounded-sm" />
     </div>
     <div className="flex items-center gap-1"><div className="h-0.5 w-1 bg-purple-500 rounded-sm"/><div className="h-0.5 w-14 bg-gray-300 rounded-full"/></div>
+  </div>
+);
+
+const PreviewQwintsoft = () => (
+  <div className="p-2 space-y-1 bg-white">
+    <div className="h-1 w-8 bg-slate-800 rounded-sm mb-2" />
+    <div className="h-1.5 w-16 bg-slate-700 rounded-sm mb-1" />
+    <div className="h-1 w-20 bg-slate-400 rounded-sm" />
+    <div className="h-1 w-16 bg-slate-400 rounded-sm mb-2" />
+    <div className="h-1.5 w-24 bg-slate-700 rounded-sm mb-1" />
+    <div className="h-1 w-16 bg-slate-400 rounded-sm" />
   </div>
 );

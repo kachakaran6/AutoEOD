@@ -239,3 +239,37 @@ export function renderCreative(report: any, senderName: string): string {
 </body>
 </html>`;
 }
+
+export function renderQwintsoft(report: any, senderName: string): string {
+  const formatList = (items: string[] | null | undefined) => {
+    if (!items || !items.length) return 'None';
+    return items.map((i: string) => escapeHtml(i)).join('\n');
+  };
+
+  const completed = formatList(report.completedItems);
+  const inProgress = formatList(report.inProgressItems);
+  const issues = report.blockers ? escapeHtml(report.blockers) : 'No issues.';
+  const tomorrow = report.tomorrowPlan ? escapeHtml(report.tomorrowPlan) : 'None';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #000; line-height: 1.5; white-space: pre-wrap;">Hi Sir,
+
+${report.summary ? escapeHtml(report.summary) + '\n\n' : ''}Today I completed:
+${completed}
+
+Currently working on:
+${inProgress}
+
+Any issues:
+${issues}
+
+Plan for tomorrow:
+${tomorrow}
+
+Thanks,
+${escapeHtml(senderName)}</body>
+</html>`;
+}
