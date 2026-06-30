@@ -90,12 +90,7 @@ export function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Integrations</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Connect your tools to auto-track daily work activity
-        </p>
-      </div>
+
 
       {/* GitHub integration */}
       <div>

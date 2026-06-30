@@ -117,10 +117,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Settings</h2>
-          <p className="text-muted-foreground text-sm mt-1">Configure your work schedule and report preferences</p>
-        </div>
+        <div className="flex-1"></div>
         <Button
           onClick={() => saveMutation.mutate()}
           disabled={(!isDirty && !extIsDirty) || saveMutation.isPending}

@@ -3,17 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
-const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/timeline': 'Activity Timeline',
-  '/integrations': 'Integrations',
-  '/settings': 'Settings',
-}
-
-function getTitle(pathname: string): string {
-  if (pathname.startsWith('/reports/')) return 'EOD Report'
-  return pageTitles[pathname] || 'AutoEOD'
-}
+// getTitle removed as we now pass pathname to TopBar
 
 export function AppLayout() {
   const { pathname } = useLocation()
@@ -25,7 +15,7 @@ export function AppLayout() {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar title={getTitle(pathname)} />
+        <TopBar pathname={pathname} />
         <main className="flex-1 overflow-y-auto">
           <div className="px-6 py-8 animate-fade-in">
             <Outlet />

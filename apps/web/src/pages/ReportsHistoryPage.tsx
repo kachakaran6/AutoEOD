@@ -32,12 +32,7 @@ export function ReportsHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Reports History</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          View all your past End-of-Day reports
-        </p>
-      </div>
+
 
       <div className="space-y-3">
         {reportsList?.length === 0 ? (

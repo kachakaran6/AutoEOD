@@ -179,10 +179,7 @@ export function ActivityLogPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Activity Radar</h1>
-          <p className="text-muted-foreground">Review and select captured browser activity for your reports.</p>
-        </div>
+        <div className="flex-1"></div>
         <div className="flex items-center gap-2">
           <Button 
             variant="default" 

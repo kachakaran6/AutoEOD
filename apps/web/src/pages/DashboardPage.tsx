@@ -76,19 +76,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          {isLoading ? (
-            <Skeleton className="h-8 w-48 mb-2" />
-          ) : (
-            <h2 className="text-2xl font-bold">
-              {greeting()}, {user?.name?.split(' ')[0]} 👋
-            </h2>
-          )}
-          <p className="text-muted-foreground text-sm mt-1">
-            {format(new Date(), 'EEEE, MMMM d, yyyy')} · {data?.timezone || 'UTC'}
-          </p>
-        </div>
-
+        <div className="flex-1"></div>
         <div className="flex items-center gap-2">
           {/* GitHub sync status */}
           {github && (

@@ -10,11 +10,13 @@ import { cn } from '@/lib/utils'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 
+import { Link } from 'react-router-dom'
+
 interface TopBarProps {
-  title: string
+  pathname: string
 }
 
-export function TopBar({ title }: TopBarProps) {
+export function TopBar({ pathname }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false)
   const { theme, setTheme } = useTheme()
   const queryClient = useQueryClient()
@@ -42,9 +44,47 @@ export function TopBar({ title }: TopBarProps) {
     }
   }
 
+  const generateBreadcrumbs = () => {
+    const paths = pathname.split('/').filter(Boolean)
+    if (paths.length === 0) {
+      return (
+        <nav className="flex items-center text-sm font-medium text-muted-foreground">
+          <span className="text-foreground">Dashboard</span>
+        </nav>
+      )
+    }
+
+    return (
+      <nav className="flex items-center text-sm font-medium text-muted-foreground space-x-2">
+        <Link to="/" className="hover:text-foreground transition-colors">Dashboard</Link>
+        {paths.map((path, index) => {
+          const isLast = index === paths.length - 1
+          const href = '/' + paths.slice(0, index + 1).join('/')
+          // Format path: 'activity-log' -> 'Activity Log'
+          const formattedPath = path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+          
+          return (
+            <div key={path} className="flex items-center space-x-2">
+              <span>/</span>
+              {isLast ? (
+                <span className="text-foreground">{formattedPath}</span>
+              ) : (
+                <Link to={href} className="hover:text-foreground transition-colors">
+                  {formattedPath}
+                </Link>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+    )
+  }
+
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 backdrop-blur-sm px-6">
-      <h1 className="text-base font-semibold">{title}</h1>
+      <div className="flex items-center">
+        {generateBreadcrumbs()}
+      </div>
 
       <div className="flex items-center gap-2 relative">
         <Button

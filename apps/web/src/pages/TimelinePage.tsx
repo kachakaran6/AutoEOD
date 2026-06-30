@@ -82,12 +82,7 @@ export function TimelinePage() {
     <div className="space-y-6">
       {/* Header with date picker */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Activity Timeline</h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            Your GitHub activity tracked in real-time
-          </p>
-        </div>
+        <div className="flex-1"></div>
 
         <div className="flex items-center gap-2">
           <Button
