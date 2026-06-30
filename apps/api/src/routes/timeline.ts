@@ -2,6 +2,21 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../middleware/auth';
+import OpenAI from 'openai';
+
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_BASE_URL;
+    if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+    _openai = new OpenAI({ 
+      apiKey,
+      ...(baseURL ? { baseURL } : {})
+    });
+  }
+  return _openai;
+}
 
 export const timelineRouter = Router();
 
@@ -170,17 +185,48 @@ timelineRouter.post('/generate-summaries', requireAuth, async (req: Request, res
     where: { userId, aiSummary: null }
   });
 
-  // Basic mockup for AI summaries since actual OpenAI call is complex
-  // and we'd usually use BullMQ for this to avoid blocking.
-  // But user said: "For every session generate a meaningful summary."
-  // Let's do a simple heuristic first to unblock UI testing
-  for (const s of sessions) {
-    const summary = `Worked on ${s.project || s.appName} - ${s.windowTitle}`;
-    await prisma.timelineSession.update({
-      where: { id: s.id },
-      data: { aiSummary: summary }
-    });
+  if (sessions.length === 0) {
+    res.json({ success: true, count: 0 });
+    return;
   }
 
-  res.json({ success: true });
+  try {
+    const openai = getOpenAI();
+    
+    // Batch process sessions to avoid huge context, but for simplicity, we send them in one big array
+    // and ask for a JSON map back.
+    const prompt = `You are an AI that summarizes raw window tracking data into clean, professional activity summaries.
+Below is a JSON array of tracked sessions with 'id', 'appName', 'windowTitle', and 'durationSeconds'.
+For each session, provide a 1-sentence summary of what the user was doing. Keep it professional.
+
+Input Sessions:
+${JSON.stringify(sessions.map(s => ({ id: s.id, appName: s.appName, windowTitle: s.windowTitle, duration: s.durationSeconds })))}
+
+Return ONLY a JSON object mapping the 'id' to the generated 'summary' string.
+Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed documentation for React" }
+`;
+
+    const response = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('Empty response from OpenAI');
+
+    const summariesMap = JSON.parse(content) as Record<string, string>;
+
+    for (const [id, summary] of Object.entries(summariesMap)) {
+      await prisma.timelineSession.update({
+        where: { id },
+        data: { aiSummary: summary }
+      });
+    }
+
+    res.json({ success: true, count: Object.keys(summariesMap).length });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate summaries' });
+  }
 });

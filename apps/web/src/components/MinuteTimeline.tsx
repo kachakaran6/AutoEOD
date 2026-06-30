@@ -72,22 +72,43 @@ export function MinuteTimeline({ date }: { date: string }) {
   });
 
   const handleExport = (formatType: string) => {
-    // Basic export mockup
-    const text = sessions.map((s: any) => 
-      `${format(new Date(s.startTime), 'HH:mm')} - ${format(new Date(s.endTime), 'HH:mm')} | ${s.appName} | ${s.aiSummary || s.windowTitle}`
-    ).join('\n');
+    let content = '';
+    let mimeType = 'text/plain';
+
+    if (formatType === 'json') {
+      content = JSON.stringify(sessions, null, 2);
+      mimeType = 'application/json';
+    } else if (formatType === 'csv') {
+      content = ['Start,End,App,Title,Summary,DurationSecs'].join(',') + '\n' + sessions.map((s: any) => 
+        `"${format(new Date(s.startTime), 'HH:mm')}","${format(new Date(s.endTime), 'HH:mm')}","${s.appName?.replace(/"/g, '""')}","${s.windowTitle?.replace(/"/g, '""')}","${s.aiSummary?.replace(/"/g, '""')}","${s.durationSeconds}"`
+      ).join('\n');
+      mimeType = 'text/csv';
+    } else if (formatType === 'markdown') {
+      content = `# Timeline for ${date}\n\n` + sessions.map((s: any) => 
+        `- **${format(new Date(s.startTime), 'HH:mm')} - ${format(new Date(s.endTime), 'HH:mm')}**: ${s.appName} | ${s.aiSummary || s.windowTitle}`
+      ).join('\n');
+      mimeType = 'text/markdown';
+    } else if (formatType === 'txt') {
+      content = sessions.map((s: any) => 
+        `${format(new Date(s.startTime), 'HH:mm')} - ${format(new Date(s.endTime), 'HH:mm')} | ${s.appName} | ${s.aiSummary || s.windowTitle}`
+      ).join('\n');
+      mimeType = 'text/plain';
+    }
 
     if (formatType === 'clipboard') {
+      const text = sessions.map((s: any) => `${format(new Date(s.startTime), 'HH:mm')} - ${format(new Date(s.endTime), 'HH:mm')} | ${s.appName} | ${s.aiSummary || s.windowTitle}`).join('\n');
       navigator.clipboard.writeText(text);
       toast.success('Copied to clipboard');
-    } else {
-      const blob = new Blob([text], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `timeline-${date}.${formatType}`;
-      a.click();
+      return;
     }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timeline-${date}.${formatType === 'markdown' ? 'md' : formatType}`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -105,9 +126,21 @@ export function MinuteTimeline({ date }: { date: string }) {
           <Button variant="outline" size="sm" onClick={() => generateMut.mutate()} disabled={generateMut.isPending}>
             <Bot className="w-4 h-4 mr-2" /> Auto Summarize
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('txt')}>
-            <Download className="w-4 h-4 mr-2" /> Export
-          </Button>
+          <select 
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onChange={(e) => {
+              if (e.target.value) {
+                handleExport(e.target.value);
+                e.target.value = "";
+              }
+            }}
+          >
+            <option value="">Export As...</option>
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+            <option value="markdown">Markdown</option>
+            <option value="txt">Text</option>
+          </select>
           <Button variant="outline" size="sm" onClick={() => handleExport('clipboard')}>
             Copy
           </Button>
