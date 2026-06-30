@@ -15,7 +15,7 @@ export async function scheduleDispatcher(): Promise<void> {
 
   const usersWithSettings = await prisma.userSettings.findMany({
     where: { autoGenerate: true },
-    select: { userId: true, timezone: true, reportTime: true },
+    select: { userId: true, timezone: true, reportTime: true, workingDays: true },
   });
 
   let dispatched = 0;
@@ -48,6 +48,29 @@ export async function scheduleDispatcher(): Promise<void> {
     });
 
     // We removed the 'already sent' skipping block here to allow multiple reports per day if needed.
+
+    // Working Days & Holidays check
+    const isWorkingDay = userSetting.workingDays.includes(nowInTz.weekday);
+    const holiday = await prisma.holiday.findFirst({
+      where: { userId, date: reportDate }
+    });
+
+    if (!isWorkingDay || holiday) {
+      // Log skip if not already logged today
+      const existingSkip = await prisma.reportSkipLog.findFirst({
+        where: { userId, date: reportDate }
+      });
+      if (!existingSkip) {
+        await prisma.reportSkipLog.create({
+          data: {
+            userId,
+            date: reportDate,
+            reason: holiday ? `Holiday: ${holiday.name}` : `Non-working day (${nowInTz.weekdayShort})`
+          }
+        });
+      }
+      continue;
+    }
 
     // Enqueue generation
     const jobId = `scheduled-${userId}-${reportDate}-${reportTime.replace(':', '')}`;

@@ -22,6 +22,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { toast } from 'sonner'
+import { WorkingSchedule } from '@/components/WorkingSchedule'
+
 
 const TIMEZONES = [
   'Asia/Kolkata',
@@ -134,9 +136,14 @@ export function SettingsPage() {
       </div>
 
       {/* Work Schedule */}
+      <WorkingSchedule 
+        workingDays={form.workingDays || [1,2,3,4,5]} 
+        onChange={(days) => updateField('workingDays', days)} 
+      />
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Work Schedule</CardTitle>
+          <CardTitle className="text-base">Daily Report Config</CardTitle>
           <CardDescription>Used to determine your work window for activity tracking and report generation</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

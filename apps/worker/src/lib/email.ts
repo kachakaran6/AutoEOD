@@ -30,6 +30,7 @@ interface SendReportOptions {
   managerEmail: string;
   ccEmails?: string;
   template?: string;
+  timelineSessions?: any[];
 }
 
 function escapeHtml(str: string): string {
@@ -51,9 +52,26 @@ function getListHtml(items: string[], bulletStyle: string = 'margin:4px 0;', lis
 }
 
 // 1. Professional (Default)
-function renderProfessional(report: Report, senderName: string): string {
+function renderProfessional(report: Report, senderName: string, timelineSessions?: any[]): string {
   const completedHtml = getListHtml(report.completedItems as string[]);
   const inProgressHtml = getListHtml(report.inProgressItems as string[]);
+
+  let timelineHtml = '';
+  if (timelineSessions && timelineSessions.length > 0) {
+    timelineHtml = `
+      <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
+      <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">⏱️ Today's Timeline</h3>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px;">
+        ${timelineSessions.map(s => {
+          const time = new Date(s.startTime).toISOString().substr(11, 5) + '–' + new Date(s.endTime).toISOString().substr(11, 5);
+          return `<div style="margin-bottom:12px;last-child:{margin-bottom:0;}">
+            <div style="font-size:12px;color:#6b7280;font-family:monospace;">${time}</div>
+            <div style="font-size:14px;color:#374151;">${escapeHtml(s.aiSummary || s.windowTitle || s.appName)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+  }
 
   return `
 <!DOCTYPE html>
@@ -82,6 +100,8 @@ function renderProfessional(report: Report, senderName: string): string {
   ${report.tomorrowPlan ? `
   <h3 style="font-size:14px;font-weight:600;margin:16px 0 6px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">📅 Tomorrow's Plan</h3>
   <p style="margin:4px 0;">${escapeHtml(report.tomorrowPlan)}</p>` : ''}
+
+  ${timelineHtml}
 
   <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
   <p style="font-size:12px;color:#999;margin:0;">Sent via AutoEOD</p>
@@ -330,6 +350,7 @@ export async function sendReportEmail({
   managerEmail,
   ccEmails,
   template = 'professional',
+  timelineSessions
 }: SendReportOptions): Promise<void> {
   const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : undefined;
   
@@ -352,7 +373,7 @@ export async function sendReportEmail({
       break;
     case 'professional':
     default:
-      html = renderProfessional(report, senderName);
+      html = renderProfessional(report, senderName, timelineSessions);
       break;
   }
 

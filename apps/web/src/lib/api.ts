@@ -260,6 +260,7 @@ export interface UserSettings {
   workStartTime: string;
   workEndTime: string;
   reportTime: string;
+  workingDays?: number[];
   autoGenerate: boolean;
   autoSend: boolean;
   managerEmail: string | null;

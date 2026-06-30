@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
+import { MinuteTimeline } from '@/components/MinuteTimeline'
 
 function getEventIcon(type: string) {
   switch (type) {
@@ -49,7 +50,9 @@ function getEventTypeLabel(type: string) {
 
 export function TimelinePage() {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const [activeTab, setActiveTab] = useState<'events' | 'minute'>('events')
   const queryClient = useQueryClient()
+
 
   const syncMutation = useMutation({
     mutationFn: integrations.syncGitHub,
@@ -130,8 +133,24 @@ export function TimelinePage() {
         </div>
       </div>
 
-      {/* Timeline */}
-      <Card>
+      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+        <button 
+          onClick={() => setActiveTab('events')} 
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'events' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
+        >
+          GitHub / Browser Events
+        </button>
+        <button 
+          onClick={() => setActiveTab('minute')} 
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'minute' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
+        >
+          Minute-by-Minute Timeline
+        </button>
+      </div>
+
+      {activeTab === 'events' ? (
+        <Card>
+
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
@@ -230,6 +249,9 @@ export function TimelinePage() {
           )}
         </CardContent>
       </Card>
+      ) : (
+        <MinuteTimeline date={date} />
+      )}
     </div>
   )
 }

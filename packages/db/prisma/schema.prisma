@@ -27,6 +27,10 @@ model User {
   emailConnection   EmailConnection?
   browserLogs       BrowserActivityLog[]
   extensionSettings UserExtensionSettings?
+  holidays          Holiday[]
+  reportSkipLogs    ReportSkipLog[]
+  timelineSettings  TimelineSettings?
+  timelineSessions  TimelineSession[]
 }
 
 model UserSettings {
@@ -46,6 +50,7 @@ model UserSettings {
   reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
   chatgptCaptureContent Boolean @default(false)
   includeRadarLogs Boolean @default(false)
+  workingDays      Int[]   @default([1, 2, 3, 4, 5]) // 1=Mon, 7=Sun
 
   updatedAt DateTime @updatedAt
 }
@@ -204,4 +209,62 @@ model UserExtensionSettings {
   excludedDomains     Json    @default("[]")
 
   updatedAt           DateTime @updatedAt
+}
+
+model TimelineSettings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enabled             Boolean  @default(false)
+  trackingIntervalMin Int      @default(5)
+
+  updatedAt           DateTime @updatedAt
+}
+
+model Holiday {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date   String // "YYYY-MM-DD"
+  name   String
+
+  @@index([userId, date])
+}
+
+model ReportSkipLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date   String // "YYYY-MM-DD"
+  reason String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model TimelineSession {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  startTime         DateTime
+  endTime           DateTime
+  durationSeconds   Int
+
+  appName           String
+  windowTitle       String?
+  project           String?
+  detectedTask      String?
+  aiSummary         String?
+
+  selected          Boolean  @default(true)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, startTime])
 }

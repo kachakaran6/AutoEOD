@@ -22,6 +22,8 @@ import { extensionTokensRouter } from './routes/extensionTokens';
 import { extensionActivityRouter } from './routes/extensionActivity';
 import { activityLogRouter } from './routes/activity-log';
 import { extensionSettingsRouter } from './routes/extension-settings';
+import { holidaysRouter } from './routes/holidays';
+import { timelineRouter } from './routes/timeline';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -82,6 +84,9 @@ app.use('/api/extension-tokens', extensionTokensRouter);
 app.use('/api/extension/browser-activity', extensionActivityRouter);
 app.use('/api/activity-log', activityLogRouter);
 app.use('/api/extension-settings', extensionSettingsRouter);
+app.use('/api/holidays', holidaysRouter);
+app.use('/api/timeline', timelineRouter);
+
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
