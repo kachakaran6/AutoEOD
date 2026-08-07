@@ -1,0 +1,15 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy everything
+COPY . .
+
+# Install dependencies (workspaces included)
+RUN npm ci
+
+# Build all backend packages (API, Worker, DB)
+RUN npm run build
+
+# The command will be overridden in docker-compose.yml for API vs Worker
+CMD ["npm", "start"]
