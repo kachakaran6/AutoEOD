@@ -193,7 +193,7 @@ async function C() {
   return (await chrome.storage.local.get("apiToken")).apiToken || null;
 }
 function W() {
-  return "https://autoeod-production.up.railway.app/api/extension/activity";
+  return "https://autoeod-production-a43e.up.railway.app/api/extension/activity";
 }
 const ae = 10, ie = 5e3;
 async function D() {

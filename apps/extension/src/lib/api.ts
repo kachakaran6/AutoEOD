@@ -7,5 +7,5 @@ export function getApiEndpoint(): string {
   if (import.meta.env.DEV) {
     return 'http://localhost:3001/api/extension/activity';
   }
-  return 'https://autoeod-production.up.railway.app/api/extension/activity';
+  return 'https://autoeod-production-a43e.up.railway.app/api/extension/activity';
 }
