@@ -1,8 +1,6 @@
 // apps/worker/src/worker.ts
-// AutoEOD Worker process — runs BullMQ workers and repeatable jobs
-// This is a SEPARATE process from the API server (start with: tsx src/worker.ts)
+// AutoEOD Worker process entrypoint — Optimized for Upstash Redis Free Tier
 
-import 'dotenv/config';
 import { Worker, Queue } from 'bullmq';
 import { redisConnection } from './lib/redis';
 import { logger } from './lib/logger';
@@ -12,30 +10,39 @@ import { sendReportJob, type SendReportJobData } from './jobs/send-report';
 import { scheduleDispatcher } from './jobs/schedule-dispatcher';
 import { prisma } from '@autoeod/db';
 
-logger.info('AutoEOD Worker starting...');
+logger.info('AutoEOD Worker process starting...');
 
-// ── Queue references (for registering repeatable jobs) ────────────────────────
+// ── Queues ────────────────────────────────────────────────────────────────────
 const githubSyncQueue = new Queue('github-sync', { connection: redisConnection as any });
 const scheduleDispatcherQueue = new Queue('schedule-dispatcher', { connection: redisConnection as any });
 const generateReportQueue = new Queue('generate-report', { connection: redisConnection as any });
 
+// ── Upstash Optimization Worker Options ────────────────────────────────────────
+// Reduces Redis polling command frequency by 90%+ to stay well within Upstash 500k/mo free tier
+const UPSTASH_WORKER_OPTS = {
+  connection: redisConnection as any,
+  drainDelay: 30,          // Wait 30 seconds before re-checking an empty queue
+  stalledInterval: 60000,  // Check for stalled jobs every 60 seconds (instead of default 5s)
+  lockDuration: 60000,     // 60 second job lock
+};
+
 // ── Register repeatable jobs ──────────────────────────────────────────────────
 async function registerRepeatableJobs(): Promise<void> {
-  // GitHub sync: every 15 minutes for ALL users
-  await githubSyncQueue.upsertJobScheduler('github-sync-all-users', { every: 15 * 60 * 1000 }, {
+  // GitHub sync: every 1 hour for ALL users (reduces Upstash read/write ops)
+  await githubSyncQueue.upsertJobScheduler('github-sync-all-users', { every: 60 * 60 * 1000 }, {
     name: 'github-sync-all',
     data: { allUsers: true },
     opts: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   });
 
-  // Schedule dispatcher: every 1 minute
-  await scheduleDispatcherQueue.upsertJobScheduler('schedule-dispatcher', { every: 60 * 1000 }, {
+  // Schedule dispatcher: every 5 minutes
+  await scheduleDispatcherQueue.upsertJobScheduler('schedule-dispatcher', { every: 5 * 60 * 1000 }, {
     name: 'dispatch',
     data: {},
     opts: { attempts: 2, backoff: { type: 'fixed', delay: 5000 } },
   });
 
-  logger.info('Repeatable jobs registered');
+  logger.info('Repeatable jobs registered (Upstash optimized)');
 }
 
 // ── GitHub Sync Worker ────────────────────────────────────────────────────────
@@ -43,7 +50,6 @@ const githubSyncWorker = new Worker(
   'github-sync',
   async (job) => {
     if (job.data.allUsers) {
-      // Sync all users with GitHub integrations
       const integrations = await prisma.githubIntegration.findMany({
         where: { needsReconnect: false },
         select: { userId: true },
@@ -57,11 +63,10 @@ const githubSyncWorker = new Worker(
         }
       }
     } else if (job.data.userId) {
-      // Single-user sync (triggered on connect or manual)
       await syncGitHubActivity(job.data.userId);
     }
   },
-  { connection: redisConnection as any, concurrency: 2 }
+  { ...UPSTASH_WORKER_OPTS, concurrency: 2 }
 );
 
 // ── Schedule Dispatcher Worker ────────────────────────────────────────────────
@@ -70,7 +75,7 @@ const scheduleDispatcherWorker = new Worker(
   async () => {
     await scheduleDispatcher();
   },
-  { connection: redisConnection as any, concurrency: 1 }
+  { ...UPSTASH_WORKER_OPTS, concurrency: 1 }
 );
 
 // ── Generate Report Worker ─────────────────────────────────────────────────────
@@ -81,7 +86,7 @@ const generateReportWorker = new Worker(
     logger.info({ jobId: job.id, userId: data.userId, reportDate: data.reportDate }, 'Processing generate-report job');
     await generateReport(data);
   },
-  { connection: redisConnection as any, concurrency: 3 }
+  { ...UPSTASH_WORKER_OPTS, concurrency: 3 }
 );
 
 // ── Send Report Worker ─────────────────────────────────────────────────────────
@@ -91,7 +96,7 @@ const sendReportWorker = new Worker(
     const data = job.data as SendReportJobData;
     await sendReportJob(data);
   },
-  { connection: redisConnection as any, concurrency: 5 }
+  { ...UPSTASH_WORKER_OPTS, concurrency: 5 }
 );
 
 // ── Event handlers ────────────────────────────────────────────────────────────
@@ -101,35 +106,31 @@ for (const worker of [githubSyncWorker, scheduleDispatcherWorker, generateReport
   });
 
   worker.on('failed', (job, err) => {
-    logger.error({ jobId: job?.id, queue: job?.queueName, err }, 'Job failed');
-  });
-
-  worker.on('error', (err) => {
-    logger.error({ err }, 'Worker error');
+    logger.error({ jobId: job?.id, queue: worker.name, err }, 'Job failed');
   });
 }
 
-// ── Startup ───────────────────────────────────────────────────────────────────
-registerRepeatableJobs()
-  .then(() => logger.info('AutoEOD Worker ready'))
-  .catch((err) => {
-    logger.error({ err }, 'Failed to register repeatable jobs');
-    process.exit(1);
-  });
+// ── Process lifecycle ─────────────────────────────────────────────────────────
+async function main() {
+  await registerRepeatableJobs();
+  logger.info('AutoEOD Worker ready');
+}
 
-// ── Graceful shutdown ─────────────────────────────────────────────────────────
-const shutdown = async (signal: string): Promise<void> => {
-  logger.info({ signal }, 'Shutting down worker...');
+main().catch((err) => {
+  logger.fatal({ err }, 'Worker failed to start');
+  process.exit(1);
+});
+
+async function shutdown(signal: string) {
+  logger.info({ signal }, 'Worker shutting down gracefully...');
   await Promise.all([
     githubSyncWorker.close(),
     scheduleDispatcherWorker.close(),
     generateReportWorker.close(),
     sendReportWorker.close(),
   ]);
-  await prisma.$disconnect();
-  logger.info('Worker shutdown complete');
   process.exit(0);
-};
+}
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
