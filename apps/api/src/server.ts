@@ -33,7 +33,7 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowedEnv = process.env.FRONTEND_URL || 'http://localhost:5173';
       const allowedOrigins = allowedEnv.split(',').map((url) => url.trim().replace(/\/$/, ''));
       if (
@@ -77,7 +77,7 @@ const authLimiter = rateLimit({
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/health', (_req: express.Request, res: express.Response) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use('/api/auth/google', authLimiter, googleAuthRouter);
 app.use('/api/auth/zoho', authLimiter, zohoAuthRouter);
@@ -97,7 +97,7 @@ app.use('/api/timeline', timelineRouter);
 
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
-app.use((_req, res) => {
+app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({ error: 'Not found' });
 });
 

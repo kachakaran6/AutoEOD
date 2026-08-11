@@ -1,7 +1,7 @@
 // apps/api/src/routes/integrations.ts
 // GitHub OAuth connect/callback/disconnect
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../middleware/auth';
@@ -32,7 +32,7 @@ const githubSyncQueue = new Queue('github-sync', { connection: redisConnection a
 // User must be logged in. Redirects to GitHub OAuth.
 // Accepts Authorization header OR ?token= query param (needed because browser
 // full-page redirects cannot set custom headers).
-integrationsRouter.get('/github/connect', (req: Request, res: Response, next): void => {
+integrationsRouter.get('/github/connect', (req: Request, res: Response, next: NextFunction): void => {
   // Accept token from query param for the OAuth redirect flow
   const tokenFromQuery = req.query.token as string | undefined;
   if (tokenFromQuery) {

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../../middleware/auth';
@@ -23,7 +23,7 @@ function getZohoConfig() {
 }
 
 // ── GET /api/auth/zoho/connect ────────────────────────────────────────────────
-zohoAuthRouter.get('/connect', (req: Request, res: Response, next): void => {
+zohoAuthRouter.get('/connect', (req: Request, res: Response, next: NextFunction): void => {
   const tokenFromQuery = req.query.token as string | undefined;
   if (tokenFromQuery) {
     req.headers.authorization = `Bearer ${tokenFromQuery}`;
