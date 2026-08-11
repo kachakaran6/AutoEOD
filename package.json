@@ -11,6 +11,7 @@
     "dev:worker": "npm run dev --workspace=apps/worker",
     "dev:web": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces --if-present",
+    "build:backend": "npm run generate --workspace=packages/db && npm run build --workspace=apps/api && npm run build --workspace=apps/worker",
     "postinstall": "npm run db:generate",
     "start": "npm run push --workspace=packages/db && npm run start --workspace=apps/api",
     "start:worker": "npm run push --workspace=packages/db && npm run start --workspace=apps/worker",
