@@ -273,6 +273,13 @@ adminRouter.patch('/users/:id/role', async (req: Request, res: Response): Promis
 });
 
 // ── System & Queue Health ─────────────────────────────────────────────────────
+const queueInstances: Record<string, Queue> = {
+  'github-sync': new Queue('github-sync', { connection: redisConnection as any }),
+  'schedule-dispatcher': new Queue('schedule-dispatcher', { connection: redisConnection as any }),
+  'generate-report': new Queue('generate-report', { connection: redisConnection as any }),
+  'send-report': new Queue('send-report', { connection: redisConnection as any }),
+};
+
 adminRouter.get('/health', async (_req: Request, res: Response): Promise<void> => {
   const healthStatus: Record<string, any> = {
     timestamp: new Date().toISOString(),
@@ -311,9 +318,7 @@ adminRouter.get('/health', async (_req: Request, res: Response): Promise<void> =
       connectedClients: parseInt(parsed.connected_clients || '0', 10),
     };
 
-    const queueNames = ['github-sync', 'schedule-dispatcher', 'generate-report', 'send-report'];
-    for (const name of queueNames) {
-      const q = new Queue(name, { connection: redisConnection as any });
+    for (const [name, q] of Object.entries(queueInstances)) {
       const counts = await q.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
       healthStatus.queues[name] = counts;
     }
