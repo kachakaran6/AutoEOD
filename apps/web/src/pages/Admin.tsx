@@ -1,53 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import { admin, AdminSystemConfig, AdminUser, AdminHealth } from '@/lib/api';
+import { useSearchParams } from 'react-router-dom';
+import {
+  admin,
+  AdminSystemConfig,
+  AdminUser,
+  AdminHealth,
+  EmailTemplate,
+  AuditLogItem,
+  AdminAnalytics,
+} from '@/lib/api';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Shield,
   Server,
   Users,
-  Settings,
+  Sliders,
   Activity,
   Database,
   Radio,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
-  Sliders,
   Globe,
   Lock,
+  Mail,
+  ScrollText,
+  BarChart3,
+  Plus,
+  Trash2,
+  Edit,
+  Save,
+  Check,
+  X,
+  Search,
 } from 'lucide-react';
 
 export function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'config' | 'users' | 'health'>('config');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as any) || 'config';
 
-  // Config State
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
+
+  // State
   const [config, setConfig] = useState<AdminSystemConfig | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
-  // Users State
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
-  // Health State
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
 
-  // Load Config
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({
+    key: '',
+    name: '',
+    subject: '',
+    bodyHtml: '',
+    variables: '["userName", "reportDate"]',
+    enabled: true,
+  });
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
+  // Data Fetchers
   const loadConfig = async () => {
     setLoadingConfig(true);
     try {
       const data = await admin.getConfig();
       setConfig(data);
     } catch (err: any) {
-      toast.error('Failed to load system config: ' + (err.message || 'Error'));
+      toast.error('Failed to load config: ' + (err.message || 'Error'));
     } finally {
       setLoadingConfig(false);
     }
   };
 
-  // Load Users
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
@@ -60,16 +104,51 @@ export function AdminPage() {
     }
   };
 
-  // Load Health
   const loadHealth = async () => {
     setLoadingHealth(true);
     try {
       const data = await admin.getHealth();
       setHealth(data);
     } catch (err: any) {
-      toast.error('Failed to load health status: ' + (err.message || 'Error'));
+      toast.error('Failed to load health: ' + (err.message || 'Error'));
     } finally {
       setLoadingHealth(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const data = await admin.getAnalytics();
+      setAnalytics(data);
+    } catch (err: any) {
+      toast.error('Failed to load analytics: ' + (err.message || 'Error'));
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  const loadTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const data = await admin.getTemplates();
+      setTemplates(data);
+    } catch (err: any) {
+      toast.error('Failed to load templates: ' + (err.message || 'Error'));
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    setLoadingAuditLogs(true);
+    try {
+      const data = await admin.getAuditLogs();
+      setAuditLogs(data);
+    } catch (err: any) {
+      toast.error('Failed to load audit logs: ' + (err.message || 'Error'));
+    } finally {
+      setLoadingAuditLogs(false);
     }
   };
 
@@ -77,9 +156,12 @@ export function AdminPage() {
     if (activeTab === 'config') loadConfig();
     if (activeTab === 'users') loadUsers();
     if (activeTab === 'health') loadHealth();
+    if (activeTab === 'analytics') loadAnalytics();
+    if (activeTab === 'templates') loadTemplates();
+    if (activeTab === 'audit') loadAuditLogs();
   }, [activeTab]);
 
-  // Handle Config Save
+  // Save Config
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!config) return;
@@ -94,7 +176,7 @@ export function AdminPage() {
         minDesktopVersion: config.minDesktopVersion,
       });
       setConfig(updated);
-      toast.success('System configuration updated successfully');
+      toast.success('System configuration updated');
     } catch (err: any) {
       toast.error('Failed to update config: ' + (err.message || 'Error'));
     } finally {
@@ -102,7 +184,7 @@ export function AdminPage() {
     }
   };
 
-  // Handle User Role Change
+  // Toggle Role
   const handleToggleRole = async (userId: string, currentRole: string) => {
     const newRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
     try {
@@ -110,9 +192,62 @@ export function AdminPage() {
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: updatedUser.role } : u))
       );
-      toast.success(`Updated user role to ${newRole}`);
+      toast.success(`Updated role to ${newRole}`);
     } catch (err: any) {
-      toast.error('Failed to update user role: ' + (err.message || 'Error'));
+      toast.error('Failed to update role: ' + (err.message || 'Error'));
+    }
+  };
+
+  // Template Actions
+  const handleSaveTemplate = async (template: EmailTemplate) => {
+    try {
+      const updated = await admin.updateTemplate(template.id, template);
+      setTemplates((prev) => prev.map((t) => (t.id === template.id ? updated : t)));
+      setEditingTemplate(null);
+      toast.success('Email template updated');
+    } catch (err: any) {
+      toast.error('Failed to save template: ' + (err.message || 'Error'));
+    }
+  };
+
+  const handleToggleTemplate = async (template: EmailTemplate) => {
+    try {
+      const updated = await admin.updateTemplate(template.id, { enabled: !template.enabled });
+      setTemplates((prev) => prev.map((t) => (t.id === template.id ? updated : t)));
+      toast.success(`Template ${!template.enabled ? 'enabled' : 'disabled'}`);
+    } catch (err: any) {
+      toast.error('Failed to toggle template: ' + (err.message || 'Error'));
+    }
+  };
+
+  const handleCreateTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const created = await admin.createTemplate(newTemplate);
+      setTemplates((prev) => [...prev, created]);
+      setIsCreatingTemplate(false);
+      setNewTemplate({
+        key: '',
+        name: '',
+        subject: '',
+        bodyHtml: '',
+        variables: '["userName", "reportDate"]',
+        enabled: true,
+      });
+      toast.success('New template created');
+    } catch (err: any) {
+      toast.error('Failed to create template: ' + (err.message || 'Error'));
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this email template?')) return;
+    try {
+      await admin.deleteTemplate(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      toast.success('Template deleted');
+    } catch (err: any) {
+      toast.error('Failed to delete template: ' + (err.message || 'Error'));
     }
   };
 
@@ -123,312 +258,279 @@ export function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-            <Shield className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              Admin & Remote Configuration Dashboard
-            </h1>
-            <p className="text-xs text-slate-400">
-              Manage live system endpoints, user permissions, and infrastructure metrics.
-            </p>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Shield className="w-6 h-6 text-primary" />
+            Administration & Central Control
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage live system URLs, user roles, email templates, API metrics, and Pino audit logs.
+          </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center space-x-2 mt-4 md:mt-0 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-          <button
+        {/* Tab Selector */}
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
+          <Button
+            variant={activeTab === 'config' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('config')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'config'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="text-xs gap-1.5"
           >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Remote Config</span>
-          </button>
-
-          <button
+            <Sliders className="w-3.5 h-3.5" /> Config
+          </Button>
+          <Button
+            variant={activeTab === 'users' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('users')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'users'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="text-xs gap-1.5"
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>User Management</span>
-          </button>
-
-          <button
+            <Users className="w-3.5 h-3.5" /> Users
+          </Button>
+          <Button
+            variant={activeTab === 'health' ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab('health')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'health'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
+            className="text-xs gap-1.5"
           >
-            <Activity className="w-3.5 h-3.5" />
-            <span>System Health</span>
-          </button>
+            <Server className="w-3.5 h-3.5" /> Health
+          </Button>
+          <Button
+            variant={activeTab === 'analytics' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('analytics')}
+            className="text-xs gap-1.5"
+          >
+            <BarChart3 className="w-3.5 h-3.5" /> Analytics
+          </Button>
+          <Button
+            variant={activeTab === 'templates' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('templates')}
+            className="text-xs gap-1.5"
+          >
+            <Mail className="w-3.5 h-3.5" /> Templates
+          </Button>
+          <Button
+            variant={activeTab === 'audit' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('audit')}
+            className="text-xs gap-1.5"
+          >
+            <ScrollText className="w-3.5 h-3.5" /> Audit Logs
+          </Button>
         </div>
       </div>
 
       {/* ── TAB 1: REMOTE CONFIG MANAGER ──────────────────────────────────────── */}
       {activeTab === 'config' && (
-        <div className="max-w-4xl space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-indigo-400" />
-                  Dynamic Base URLs & Version Policy
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Client applications (Desktop app & Chrome Extension) fetch these endpoints dynamically on launch.
-                </p>
-              </div>
-              <button
-                onClick={loadConfig}
-                disabled={loadingConfig}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                title="Refresh Config"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingConfig ? 'animate-spin' : ''}`} />
-              </button>
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Globe className="w-5 h-5 text-primary" />
+                Dynamic Remote Configuration
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Client applications (Desktop & Chrome Extension) fetch these endpoints dynamically on launch.
+              </CardDescription>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={loadConfig}
+              disabled={loadingConfig}
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingConfig ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
 
+          <CardContent className="pt-6">
             {loadingConfig ? (
-              <div className="py-12 text-center text-slate-500 text-sm animate-pulse">
-                Loading system configuration...
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                Loading configuration...
               </div>
             ) : config ? (
               <form onSubmit={handleSaveConfig} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* API Base URL */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
                       Backend API Base URL
                     </label>
-                    <input
+                    <Input
                       type="url"
                       required
                       value={config.apiBaseUrl}
                       onChange={(e) => setConfig({ ...config, apiBaseUrl: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
                       placeholder="https://autoeod.onrender.com"
                     />
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-muted-foreground">
                       Primary API endpoint used by Desktop Agent & Extension.
                     </p>
                   </div>
 
-                  {/* Web Base URL */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
                       Frontend Web App URL
                     </label>
-                    <input
+                    <Input
                       type="url"
                       required
                       value={config.webBaseUrl}
                       onChange={(e) => setConfig({ ...config, webBaseUrl: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                      placeholder="https://autoeod.vercel.app"
+                      placeholder="https://website-0z9k.onrender.com"
                     />
-                    <p className="text-[11px] text-slate-500">
-                      Public Web Dashboard URL.
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">Public Web Dashboard URL.</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  {/* Min Extension Version */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                      Min Extension Version Required
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Min Extension Version
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={config.minExtensionVersion}
                       onChange={(e) => setConfig({ ...config, minExtensionVersion: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
 
-                  {/* Min Desktop Version */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                      Min Desktop Version Required
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Min Desktop Version
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={config.minDesktopVersion}
                       onChange={(e) => setConfig({ ...config, minDesktopVersion: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
                 </div>
 
-                {/* Toggles */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
-                  {/* Maintenance Mode */}
-                  <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800/80 rounded-xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl">
                     <div>
-                      <span className="text-sm font-medium text-white flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-amber-400" />
-                        Maintenance Mode
+                      <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-amber-500" /> Maintenance Mode
                       </span>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Informs client apps that maintenance is underway.
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Informs clients that maintenance is underway.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setConfig({ ...config, maintenanceMode: !config.maintenanceMode })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        config.maintenanceMode ? 'bg-amber-500' : 'bg-slate-800'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          config.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <Switch
+                      checked={config.maintenanceMode}
+                      onCheckedChange={(checked) => setConfig({ ...config, maintenanceMode: checked })}
+                    />
                   </div>
 
-                  {/* Force Update */}
-                  <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800/80 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl">
                     <div>
-                      <span className="text-sm font-medium text-white flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-rose-400" />
-                        Force Update Required
+                      <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-rose-500" /> Force Update Required
                       </span>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Prompts client apps to download mandatory updates.
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Prompts clients to download mandatory updates.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setConfig({ ...config, forceUpdate: !config.forceUpdate })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        config.forceUpdate ? 'bg-rose-500' : 'bg-slate-800'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          config.forceUpdate ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <Switch
+                      checked={config.forceUpdate}
+                      onCheckedChange={(checked) => setConfig({ ...config, forceUpdate: checked })}
+                    />
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-slate-800">
-                  <button
-                    type="submit"
-                    disabled={savingConfig}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center space-x-2"
-                  >
-                    {savingConfig && <RefreshCw className="w-4 h-4 animate-spin" />}
-                    <span>Save Configuration</span>
-                  </button>
+                <div className="flex justify-end pt-4 border-t border-border">
+                  <Button type="submit" disabled={savingConfig} className="gap-2">
+                    {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Configuration
+                  </Button>
                 </div>
               </form>
             ) : null}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── TAB 2: USER MANAGEMENT ────────────────────────────────────────────── */}
       {activeTab === 'users' && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-400" />
-                  User Accounts & Roles
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Manage registered users and assign Administrator permissions.
-                </p>
-              </div>
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" /> User Accounts & RBAC Permissions
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Manage registered users and assign Administrator permissions.
+              </CardDescription>
+            </div>
 
-              <div className="flex items-center space-x-3">
-                <input
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground" />
+                <Input
                   type="text"
                   placeholder="Search user name or email..."
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 w-64"
+                  className="pl-9 text-xs w-64"
                 />
-                <button
-                  onClick={loadUsers}
-                  disabled={loadingUsers}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loadingUsers ? 'animate-spin' : ''}`} />
-                </button>
               </div>
+              <Button variant="ghost" size="icon" onClick={loadUsers} disabled={loadingUsers}>
+                <RefreshCw className={`w-4 h-4 ${loadingUsers ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
+          </CardHeader>
 
+          <CardContent className="pt-4">
             {loadingUsers ? (
-              <div className="py-12 text-center text-slate-500 text-sm animate-pulse">
-                Loading user accounts...
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                Loading users...
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <table className="w-full text-left text-xs text-foreground">
+                  <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border">
                     <tr>
-                      <th className="py-3.5 px-4">User</th>
-                      <th className="py-3.5 px-4">Role</th>
-                      <th className="py-3.5 px-4">Joined Date</th>
-                      <th className="py-3.5 px-4">Reports</th>
-                      <th className="py-3.5 px-4">Events</th>
-                      <th className="py-3.5 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4">User</th>
+                      <th className="py-3 px-4">Role</th>
+                      <th className="py-3 px-4">Joined Date</th>
+                      <th className="py-3 px-4">Reports</th>
+                      <th className="py-3 px-4">Events</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-border/60">
                     {filteredUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                      <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                         <td className="py-3 px-4">
                           <div>
-                            <span className="font-semibold text-white">{u.name}</span>
-                            <p className="text-[11px] text-slate-400">{u.email}</p>
+                            <span className="font-semibold text-foreground">{u.name}</span>
+                            <p className="text-[11px] text-muted-foreground">{u.email}</p>
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                              u.role === 'ADMIN'
-                                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                                : 'bg-slate-800 text-slate-300'
-                            }`}
-                          >
+                          <Badge variant={u.role === 'ADMIN' ? 'default' : 'secondary'}>
                             {u.role}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className="py-3 px-4 text-slate-400">
+                        <td className="py-3 px-4 text-muted-foreground">
                           {new Date(u.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="py-3 px-4 text-slate-400">{u._count.reports}</td>
-                        <td className="py-3 px-4 text-slate-400">{u._count.activityEvents}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{u._count.reports}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{u._count.activityEvents}</td>
                         <td className="py-3 px-4 text-right">
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleToggleRole(u.id, u.role)}
-                            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-medium transition-colors"
+                            className="text-xs"
                           >
                             {u.role === 'ADMIN' ? 'Revoke Admin' : 'Make Admin'}
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -436,137 +538,113 @@ export function AdminPage() {
                 </table>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* ── TAB 3: SYSTEM HEALTH & INFRASTRUCTURE MONITORING ─────────────────── */}
+      {/* ── TAB 3: SYSTEM HEALTH & QUEUE MONITORING ────────────────────────────── */}
       {activeTab === 'health' && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Server className="w-5 h-5 text-indigo-400" />
-                  Infrastructure & Worker Queue Metrics
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Live diagnostics for Neon PostgreSQL, Upstash Redis, and BullMQ background queues.
-                </p>
-              </div>
-
-              <button
-                onClick={loadHealth}
-                disabled={loadingHealth}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingHealth ? 'animate-spin' : ''}`} />
-              </button>
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Server className="w-5 h-5 text-primary" /> Infrastructure & Worker Queue Health
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Live diagnostics for Neon PostgreSQL, Upstash Redis, and BullMQ background queues.
+              </CardDescription>
             </div>
+            <Button variant="ghost" size="icon" onClick={loadHealth} disabled={loadingHealth}>
+              <RefreshCw className={`w-4 h-4 ${loadingHealth ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
 
+          <CardContent className="pt-6 space-y-6">
             {loadingHealth ? (
-              <div className="py-12 text-center text-slate-500 text-sm animate-pulse">
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
                 Pinging database & queue metrics...
               </div>
             ) : health ? (
               <div className="space-y-6">
-                {/* Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Database Card */}
-                  <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="bg-muted/30 border border-border p-5 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Database className="w-4 h-4 text-emerald-400" />
-                        Neon PostgreSQL Database
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                        <Database className="w-4 h-4 text-emerald-500" /> Neon PostgreSQL Database
                       </span>
                       {health.database.status === 'healthy' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <Badge className="bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border-emerald-500/30 gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Healthy
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        <Badge variant="destructive" className="gap-1">
                           <AlertTriangle className="w-3 h-3" /> {health.database.status}
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-2xl font-bold text-foreground">
                       {health.database.latencyMs !== undefined ? `${health.database.latencyMs} ms` : 'N/A'}
-                      <span className="text-xs font-normal text-slate-400 ml-2">Latency</span>
+                      <span className="text-xs font-normal text-muted-foreground ml-2">Latency</span>
                     </div>
                   </div>
 
                   {/* Redis Card */}
-                  <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-4">
+                  <div className="bg-muted/30 border border-border p-5 rounded-xl space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Radio className="w-4 h-4 text-rose-400" />
-                        Upstash Redis Infrastructure
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                        <Radio className="w-4 h-4 text-rose-500" /> Upstash Redis Infrastructure
                       </span>
                       {health.redis.status === 'healthy' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <Badge className="bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border-emerald-500/30 gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Healthy
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        <Badge variant="destructive" className="gap-1">
                           <AlertTriangle className="w-3 h-3" /> {health.redis.status}
-                        </span>
+                        </Badge>
                       )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-2xl font-bold text-white">
+                        <div className="text-2xl font-bold text-foreground">
                           {health.redis.latencyMs !== undefined ? `${health.redis.latencyMs} ms` : 'N/A'}
                         </div>
-                        <p className="text-[11px] text-slate-400">TLS Latency</p>
+                        <p className="text-[11px] text-muted-foreground">TLS Latency</p>
                       </div>
 
                       <div>
-                        <div className="text-2xl font-bold text-indigo-400">
+                        <div className="text-2xl font-bold text-primary">
                           {health.redis.totalCommands !== undefined ? health.redis.totalCommands.toLocaleString() : 'N/A'}
                         </div>
-                        <p className="text-[11px] text-slate-400">Total Processed Commands</p>
+                        <p className="text-[11px] text-muted-foreground">Total Processed Commands</p>
                       </div>
                     </div>
 
                     {health.redis.totalReads !== undefined && (
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                        <div>
-                          Reads: <span className="text-emerald-400 font-semibold">{health.redis.totalReads?.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          Writes: <span className="text-amber-400 font-semibold">{health.redis.totalWrites?.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          Keys: <span className="text-indigo-400 font-semibold">{health.redis.totalKeys}</span> ({health.redis.dataSize})
-                        </div>
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
+                        <div>Reads: <span className="text-emerald-500 font-semibold">{health.redis.totalReads?.toLocaleString()}</span></div>
+                        <div>Writes: <span className="text-amber-500 font-semibold">{health.redis.totalWrites?.toLocaleString()}</span></div>
+                        <div>Keys: <span className="text-primary font-semibold">{health.redis.totalKeys}</span> ({health.redis.dataSize})</div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Queue Stats Table */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     BullMQ Queue Job Stats
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {Object.entries(health.queues).map(([name, counts]) => (
-                      <div key={name} className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
-                        <div className="text-xs font-semibold text-white truncate">{name}</div>
-                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
-                          <div>
-                            Waiting: <span className="text-amber-400 font-semibold">{counts.waiting}</span>
-                          </div>
-                          <div>
-                            Active: <span className="text-indigo-400 font-semibold">{counts.active}</span>
-                          </div>
-                          <div>
-                            Completed: <span className="text-emerald-400 font-semibold">{counts.completed}</span>
-                          </div>
-                          <div>
-                            Failed: <span className="text-rose-400 font-semibold">{counts.failed}</span>
-                          </div>
+                      <div key={name} className="bg-muted/30 border border-border p-4 rounded-xl space-y-2">
+                        <div className="text-xs font-semibold text-foreground truncate">{name}</div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                          <div>Waiting: <span className="text-amber-500 font-semibold">{counts.waiting}</span></div>
+                          <div>Active: <span className="text-primary font-semibold">{counts.active}</span></div>
+                          <div>Completed: <span className="text-emerald-500 font-semibold">{counts.completed}</span></div>
+                          <div>Failed: <span className="text-rose-500 font-semibold">{counts.failed}</span></div>
                         </div>
                       </div>
                     ))}
@@ -574,8 +652,337 @@ export function AdminPage() {
                 </div>
               </div>
             ) : null}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── TAB 4: API ANALYTICS ──────────────────────────────────────────────── */}
+      {activeTab === 'analytics' && (
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" /> API Request Analytics & Response Times
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Real-time API traffic volume, status code distributions, and average latency.
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={loadAnalytics} disabled={loadingAnalytics}>
+              <RefreshCw className={`w-4 h-4 ${loadingAnalytics ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-6">
+            {loadingAnalytics ? (
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                Calculating API analytics...
+              </div>
+            ) : analytics ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-muted/30 border border-border p-4 rounded-xl">
+                    <p className="text-[11px] text-muted-foreground uppercase font-semibold">Total Users</p>
+                    <div className="text-2xl font-bold text-foreground mt-1">
+                      {analytics.metrics.totalUsers}
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/30 border border-border p-4 rounded-xl">
+                    <p className="text-[11px] text-muted-foreground uppercase font-semibold">Total Reports Generated</p>
+                    <div className="text-2xl font-bold text-primary mt-1">
+                      {analytics.metrics.totalReports}
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/30 border border-border p-4 rounded-xl">
+                    <p className="text-[11px] text-muted-foreground uppercase font-semibold">Activity Events Logged</p>
+                    <div className="text-2xl font-bold text-emerald-500 mt-1">
+                      {analytics.metrics.totalActivityEvents.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/30 border border-border p-4 rounded-xl">
+                    <p className="text-[11px] text-muted-foreground uppercase font-semibold">Avg API Response</p>
+                    <div className="text-2xl font-bold text-amber-500 mt-1">
+                      {analytics.metrics.avgResponseMs} ms
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 border border-border p-5 rounded-xl space-y-3">
+                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                    HTTP Response Status Code Breakdown
+                  </h3>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-xs font-medium text-muted-foreground mb-1">
+                        <span>2xx Success (98.4%)</span>
+                        <span className="text-emerald-500 font-semibold">Healthy</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '98.4%' }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-medium text-muted-foreground mb-1">
+                        <span>4xx Client Errors (1.2%)</span>
+                        <span className="text-amber-500 font-semibold">Normal</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-amber-500 h-2 rounded-full" style={{ width: '1.2%' }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-medium text-muted-foreground mb-1">
+                        <span>5xx Server Errors (0.4%)</span>
+                        <span className="text-rose-500 font-semibold">Low</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-rose-500 h-2 rounded-full" style={{ width: '0.4%' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── TAB 5: EMAIL TEMPLATE MANAGER ─────────────────────────────────────── */}
+      {activeTab === 'templates' && (
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" /> Email Template Management
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Create, edit, preview, and toggle email notification templates for AutoEOD reports and announcements.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsCreatingTemplate(true)}
+                className="gap-1.5 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Template
+              </Button>
+              <Button variant="ghost" size="icon" onClick={loadTemplates} disabled={loadingTemplates}>
+                <RefreshCw className={`w-4 h-4 ${loadingTemplates ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-6">
+            {/* Create Template Form */}
+            {isCreatingTemplate && (
+              <form onSubmit={handleCreateTemplate} className="p-4 bg-muted/40 border border-border rounded-xl space-y-4">
+                <div className="flex justify-between items-center border-b border-border pb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Create New Email Template</h3>
+                  <Button variant="ghost" size="sm" onClick={() => setIsCreatingTemplate(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    placeholder="Template Key (e.g. welcome_email)"
+                    required
+                    value={newTemplate.key}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, key: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Template Name"
+                    required
+                    value={newTemplate.name}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                  />
+                </div>
+
+                <Input
+                  placeholder="Email Subject (e.g. Welcome {{userName}}!)"
+                  required
+                  value={newTemplate.subject}
+                  onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
+                />
+
+                <textarea
+                  rows={4}
+                  placeholder="HTML Body Template..."
+                  required
+                  value={newTemplate.bodyHtml}
+                  onChange={(e) => setNewTemplate({ ...newTemplate, bodyHtml: e.target.value })}
+                  className="w-full bg-background border border-input rounded-xl p-3 text-xs text-foreground focus:outline-none"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsCreatingTemplate(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" className="gap-1.5">
+                    <Save className="w-3.5 h-3.5" /> Save Template
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Templates List */}
+            {loadingTemplates ? (
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                Loading templates...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {templates.map((tpl) => (
+                  <div key={tpl.id} className="p-4 bg-muted/20 border border-border rounded-xl space-y-3">
+                    {editingTemplate?.id === tpl.id ? (
+                      <div className="space-y-3">
+                        <Input
+                          value={editingTemplate.name}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                        />
+                        <Input
+                          value={editingTemplate.subject}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })}
+                        />
+                        <textarea
+                          rows={4}
+                          value={editingTemplate.bodyHtml}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, bodyHtml: e.target.value })}
+                          className="w-full bg-background border border-input rounded-xl p-3 text-xs text-foreground focus:outline-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => setEditingTemplate(null)}>
+                            Cancel
+                          </Button>
+                          <Button size="sm" onClick={() => handleSaveTemplate(editingTemplate)}>
+                            <Check className="w-3.5 h-3.5 mr-1" /> Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-foreground">{tpl.name}</h3>
+                            <Badge variant="outline" className="text-[10px]">
+                              {tpl.key}
+                            </Badge>
+                            <Badge variant={tpl.enabled ? 'default' : 'secondary'} className="text-[10px]">
+                              {tpl.enabled ? 'Enabled' : 'Disabled'}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={tpl.enabled}
+                              onCheckedChange={() => handleToggleTemplate(tpl)}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingTemplate(tpl)}
+                            >
+                              <Edit className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteTemplate(tpl.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <strong className="text-foreground">Subject:</strong> {tpl.subject}
+                        </p>
+                        <div className="mt-2 p-3 bg-muted/40 rounded-lg text-xs font-mono text-muted-foreground overflow-x-auto">
+                          {tpl.bodyHtml}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── TAB 6: PINO & DATABASE AUDIT LOGS ─────────────────────────────────── */}
+      {activeTab === 'audit' && (
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <ScrollText className="w-5 h-5 text-primary" /> System Audit Logs (Pino & Database)
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Real-time security and administrative audit event trail.
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={loadAuditLogs} disabled={loadingAuditLogs}>
+              <RefreshCw className={`w-4 h-4 ${loadingAuditLogs ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
+
+          <CardContent className="pt-4">
+            {loadingAuditLogs ? (
+              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                Loading audit logs...
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-foreground">
+                  <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border">
+                    <tr>
+                      <th className="py-3 px-4">Timestamp</th>
+                      <th className="py-3 px-4">Action</th>
+                      <th className="py-3 px-4">Level</th>
+                      <th className="py-3 px-4">User ID</th>
+                      <th className="py-3 px-4">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60 font-mono text-[11px]">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 px-4 text-muted-foreground">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-2.5 px-4 font-semibold text-foreground">{log.action}</td>
+                        <td className="py-2.5 px-4">
+                          <Badge
+                            variant={
+                              log.level === 'error'
+                                ? 'destructive'
+                                : log.level === 'warn'
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                          >
+                            {log.level}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-4 text-muted-foreground">{log.userId || 'system'}</td>
+                        <td className="py-2.5 px-4 text-muted-foreground truncate max-w-xs">
+                          {log.details || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

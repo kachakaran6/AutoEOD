@@ -445,6 +445,45 @@ export interface AdminHealth {
   }>;
 }
 
+export interface EmailTemplate {
+  id: string;
+  key: string;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText?: string | null;
+  enabled: boolean;
+  variables: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditLogItem {
+  id: string;
+  userId?: string | null;
+  action: string;
+  level: string;
+  details?: string | null;
+  ipAddress?: string | null;
+  createdAt: string;
+}
+
+export interface AdminAnalytics {
+  metrics: {
+    totalUsers: number;
+    totalReports: number;
+    totalActivityEvents: number;
+    totalBrowserLogs: number;
+    estimatedApiReqs: number;
+    avgResponseMs: number;
+    statusDistribution: {
+      '2xx_success': number;
+      '4xx_client': number;
+      '5xx_server': number;
+    };
+  };
+}
+
 export const admin = {
   getConfig: () => apiRequest<AdminSystemConfig>('/admin/config'),
   updateConfig: (data: Partial<AdminSystemConfig>) =>
@@ -459,4 +498,21 @@ export const admin = {
       body: JSON.stringify({ role }),
     }),
   getHealth: () => apiRequest<AdminHealth>('/admin/health'),
+  getTemplates: () => apiRequest<EmailTemplate[]>('/admin/templates'),
+  createTemplate: (data: Partial<EmailTemplate>) =>
+    apiRequest<EmailTemplate>('/admin/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateTemplate: (id: string, data: Partial<EmailTemplate>) =>
+    apiRequest<EmailTemplate>(`/admin/templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteTemplate: (id: string) =>
+    apiRequest<{ success: boolean }>(`/admin/templates/${id}`, {
+      method: 'DELETE',
+    }),
+  getAuditLogs: () => apiRequest<AuditLogItem[]>('/admin/audit-logs'),
+  getAnalytics: () => apiRequest<AdminAnalytics>('/admin/analytics'),
 };
