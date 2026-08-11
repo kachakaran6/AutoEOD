@@ -1035,6 +1035,10 @@ export function AdminPage() {
               <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
                 Loading audit logs...
               </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-xs">
+                No audit logs found. System and administrative events will appear here automatically.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-foreground">
