@@ -427,6 +427,13 @@ export interface AdminHealth {
   redis: {
     status: 'healthy' | 'unhealthy' | 'down';
     latencyMs?: number;
+    totalCommands?: number;
+    totalReads?: number;
+    totalWrites?: number;
+    totalKeys?: number;
+    dataSize?: string;
+    opsPerSec?: number;
+    connectedClients?: number;
     error?: string;
   };
   queues: Record<string, {

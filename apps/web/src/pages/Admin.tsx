@@ -496,7 +496,7 @@ export function AdminPage() {
                   </div>
 
                   {/* Redis Card */}
-                  <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <Radio className="w-4 h-4 text-rose-400" />
@@ -512,10 +512,36 @@ export function AdminPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-2xl font-bold text-white">
-                      {health.redis.latencyMs !== undefined ? `${health.redis.latencyMs} ms` : 'N/A'}
-                      <span className="text-xs font-normal text-slate-400 ml-2">TLS Latency</span>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-2xl font-bold text-white">
+                          {health.redis.latencyMs !== undefined ? `${health.redis.latencyMs} ms` : 'N/A'}
+                        </div>
+                        <p className="text-[11px] text-slate-400">TLS Latency</p>
+                      </div>
+
+                      <div>
+                        <div className="text-2xl font-bold text-indigo-400">
+                          {health.redis.totalCommands !== undefined ? health.redis.totalCommands.toLocaleString() : 'N/A'}
+                        </div>
+                        <p className="text-[11px] text-slate-400">Total Processed Commands</p>
+                      </div>
                     </div>
+
+                    {health.redis.totalReads !== undefined && (
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                        <div>
+                          Reads: <span className="text-emerald-400 font-semibold">{health.redis.totalReads?.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          Writes: <span className="text-amber-400 font-semibold">{health.redis.totalWrites?.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          Keys: <span className="text-indigo-400 font-semibold">{health.redis.totalKeys}</span> ({health.redis.dataSize})
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

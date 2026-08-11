@@ -29,6 +29,19 @@ const UpdateUserRoleSchema = z.object({
   role: z.enum(['USER', 'ADMIN']),
 });
 
+// Helper to parse Redis info string
+function parseRedisInfo(raw: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes(':')) {
+      const [key, val] = trimmed.split(':');
+      result[key.trim()] = val.trim();
+    }
+  }
+  return result;
+}
+
 // ── GET /api/admin/config ─────────────────────────────────────────────────────
 adminRouter.get('/config', async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -143,13 +156,23 @@ adminRouter.get('/health', async (_req: Request, res: Response): Promise<void> =
     healthStatus.database = { status: 'unhealthy', error: err.message };
   }
 
-  // 2. Upstash Redis & Queue Stats
+  // 2. Upstash Redis Stats & Ping
   try {
     const startRedis = Date.now();
     await redisConnection.ping();
+    const infoRaw = await redisConnection.info();
+    const parsed = parseRedisInfo(infoRaw);
+
     healthStatus.redis = {
       status: 'healthy',
       latencyMs: Date.now() - startRedis,
+      totalCommands: parseInt(parsed.total_commands_processed || '0', 10),
+      totalReads: parseInt(parsed.total_reads_processed || '0', 10),
+      totalWrites: parseInt(parsed.total_writes_processed || '0', 10),
+      totalKeys: parseInt(parsed.total_keys || '0', 10),
+      dataSize: parsed.total_data_size_human || '0 B',
+      opsPerSec: parseInt(parsed.instantaneous_ops_per_sec || '0', 10),
+      connectedClients: parseInt(parsed.connected_clients || '0', 10),
     };
 
     // Inspect BullMQ queues
