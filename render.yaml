@@ -1,0 +1,89 @@
+# Render Blueprint Specification for AutoEOD Infrastructure Migration
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ── API Web Service ────────────────────────────────────────────────────────
+  - type: web
+    name: autoeod-api
+    env: docker
+    dockerfilePath: Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false # Neon PostgreSQL connection string (postgresql://...)
+      - key: REDIS_URL
+        sync: false # Upstash Redis connection URL (rediss://...)
+      - key: FRONTEND_URL
+        sync: false # Vercel production frontend URL (https://your-app.vercel.app)
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false # AES-256-GCM 64-char hex key for GitHub/Email tokens
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        sync: false
+      - key: ZOHO_CLIENT_ID
+        sync: false
+      - key: ZOHO_CLIENT_SECRET
+        sync: false
+      - key: ZOHO_CALLBACK_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
+  # ── Background Worker ──────────────────────────────────────────────────────
+  - type: worker
+    name: autoeod-worker
+    env: docker
+    dockerfilePath: Dockerfile.backend
+    dockerContext: .
+    dockerCommand: npm run start:worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Neon PostgreSQL connection string
+      - key: REDIS_URL
+        sync: false # Upstash Redis connection URL
+      - key: FRONTEND_URL
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ZOHO_CLIENT_ID
+        sync: false
+      - key: ZOHO_CLIENT_SECRET
+        sync: false

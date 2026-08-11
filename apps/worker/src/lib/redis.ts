@@ -2,9 +2,12 @@
 import { Redis } from 'ioredis';
 import { logger } from './logger';
 
-export const redisConnection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+export const redisConnection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
   lazyConnect: true,
+  tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
 });
 
 redisConnection.on('error', (err) => logger.error({ err }, 'Worker Redis error'));

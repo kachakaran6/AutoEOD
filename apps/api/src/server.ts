@@ -26,14 +26,22 @@ import { holidaysRouter } from './routes/holidays';
 import { timelineRouter } from './routes/timeline';
 
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowed = process.env.FRONTEND_URL || 'http://localhost:5173';
-      if (!origin || origin === allowed || origin.startsWith('chrome-extension://')) {
+      const allowedEnv = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const allowedOrigins = allowedEnv.split(',').map((url) => url.trim().replace(/\/$/, ''));
+      if (
+        !origin ||
+        allowedOrigins.includes(origin.replace(/\/$/, '')) ||
+        origin === 'http://localhost:5173' ||
+        origin.startsWith('chrome-extension://')
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
