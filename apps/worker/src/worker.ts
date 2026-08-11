@@ -21,9 +21,9 @@ const generateReportQueue = new Queue('generate-report', { connection: redisConn
 // Reduces Redis polling command frequency by 90%+ to stay well within Upstash 500k/mo free tier
 const UPSTASH_WORKER_OPTS = {
   connection: redisConnection as any,
-  drainDelay: 60,          // Wait 60 seconds before re-checking an empty queue
-  stalledInterval: 300000, // Check for stalled jobs every 5 minutes (instead of default 5s)
-  lockDuration: 60000,     // 60 second job lock
+  drainDelay: 300,         // Wait 5 minutes before re-checking an empty queue
+  stalledInterval: 0,      // Disable continuous stalled job scanning (cuts 99% of idle Redis ops)
+  lockDuration: 120000,    // 2 minute job lock
 };
 
 // ── Register repeatable jobs ──────────────────────────────────────────────────

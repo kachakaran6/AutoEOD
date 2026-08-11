@@ -280,7 +280,16 @@ const queueInstances: Record<string, Queue> = {
   'send-report': new Queue('send-report', { connection: redisConnection as any }),
 };
 
+let cachedHealthResponse: { timestamp: number; data: any } | null = null;
+const HEALTH_CACHE_TTL_MS = 60000; // Cache health metrics in memory for 60s
+
 adminRouter.get('/health', async (_req: Request, res: Response): Promise<void> => {
+  const now = Date.now();
+  if (cachedHealthResponse && now - cachedHealthResponse.timestamp < HEALTH_CACHE_TTL_MS) {
+    res.json(cachedHealthResponse.data);
+    return;
+  }
+
   const healthStatus: Record<string, any> = {
     timestamp: new Date().toISOString(),
     uptimeSeconds: process.uptime(),
@@ -326,6 +335,7 @@ adminRouter.get('/health', async (_req: Request, res: Response): Promise<void> =
     healthStatus.redis = { status: 'unhealthy', error: err.message };
   }
 
+  cachedHealthResponse = { timestamp: now, data: healthStatus };
   res.json(healthStatus);
 });
 
