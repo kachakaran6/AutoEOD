@@ -515,4 +515,16 @@ export const admin = {
     }),
   getAuditLogs: () => apiRequest<AuditLogItem[]>('/admin/audit-logs'),
   getAnalytics: () => apiRequest<AdminAnalytics>('/admin/analytics'),
+  releaseExtension: (data: { githubToken?: string; repo?: string; tag?: string; apiBaseUrl?: string }) =>
+    apiRequest<{
+      success: boolean;
+      tag: string;
+      releaseUrl?: string | null;
+      downloadUrl?: string | null;
+      sizeBytes: number;
+      directDownloadUrl: string;
+    }>('/admin/release-extension', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

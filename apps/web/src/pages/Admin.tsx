@@ -38,6 +38,8 @@ import {
   Check,
   X,
   Search,
+  Package,
+  Download,
 } from 'lucide-react';
 
 export function AdminPage() {
@@ -78,6 +80,12 @@ export function AdminPage() {
 
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
+  // Extension Release State
+  const [githubToken, setGithubToken] = useState('');
+  const [releaseTag, setReleaseTag] = useState(`v1.0.${Math.floor(Date.now() / 1000)}`);
+  const [releasingExtension, setReleasingExtension] = useState(false);
+  const [lastRelease, setLastRelease] = useState<any | null>(null);
 
   // Data Fetchers
   const loadConfig = async () => {
@@ -248,6 +256,23 @@ export function AdminPage() {
       toast.success('Template deleted');
     } catch (err: any) {
       toast.error('Failed to delete template: ' + (err.message || 'Error'));
+    }
+  };
+
+  const handleReleaseExtension = async () => {
+    setReleasingExtension(true);
+    try {
+      const res = await admin.releaseExtension({
+        githubToken: githubToken || undefined,
+        tag: releaseTag,
+        apiBaseUrl: config?.apiBaseUrl,
+      });
+      setLastRelease(res);
+      toast.success(`Extension release ${res.tag} created successfully!`);
+    } catch (err: any) {
+      toast.error('Failed to create extension release: ' + (err.message || 'Error'));
+    } finally {
+      setReleasingExtension(false);
     }
   };
 
@@ -448,6 +473,77 @@ export function AdminPage() {
                     {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Configuration
                   </Button>
+                </div>
+
+                {/* 📦 1-Click Chrome Extension GitHub Release Builder */}
+                <div className="pt-6 border-t border-border space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <Package className="w-4 h-4 text-primary" /> 1-Click Extension GitHub Release Builder
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Builds, zips, and automatically publishes a new Chrome Extension bundle to GitHub Releases.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      type="password"
+                      placeholder="GitHub Token (Optional - overrides server env)"
+                      value={githubToken}
+                      onChange={(e) => setGithubToken(e.target.value)}
+                      className="text-xs"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Release Version Tag (e.g. v1.0.3)"
+                      value={releaseTag}
+                      onChange={(e) => setReleaseTag(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleReleaseExtension}
+                      disabled={releasingExtension}
+                      className="gap-2 text-xs"
+                    >
+                      {releasingExtension ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5 text-primary" />}
+                      Package & Publish Extension Release
+                    </Button>
+
+                    <a
+                      href={`${config.apiBaseUrl || 'https://autoeod.onrender.com'}/api/admin/download-extension`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-lg border border-border transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-primary" /> Direct Download Extension .ZIP
+                    </a>
+                  </div>
+
+                  {lastRelease && (
+                    <div className="p-3.5 bg-muted/40 border border-border rounded-xl text-xs space-y-1.5">
+                      <p className="font-semibold text-emerald-500 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" /> Extension Package ({lastRelease.tag}) Created Successfully!
+                      </p>
+                      {lastRelease.releaseUrl && (
+                        <p className="text-muted-foreground">
+                          GitHub Release: <a href={lastRelease.releaseUrl} target="_blank" rel="noreferrer" className="text-primary underline font-medium">{lastRelease.releaseUrl}</a>
+                        </p>
+                      )}
+                      {lastRelease.downloadUrl && (
+                        <p className="text-muted-foreground">
+                          Asset Download: <a href={lastRelease.downloadUrl} target="_blank" rel="noreferrer" className="text-primary underline font-medium">{lastRelease.downloadUrl}</a>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </form>
             ) : null}

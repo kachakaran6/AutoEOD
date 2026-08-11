@@ -3,6 +3,9 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import path from 'path';
+import fs from 'fs';
+import AdmZip from 'adm-zip';
 import { prisma } from '@autoeod/db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { getOrCreateSystemConfig } from './config';
@@ -96,6 +99,119 @@ adminRouter.patch('/config', async (req: Request, res: Response): Promise<void> 
   } catch (err) {
     logger.error({ err }, 'Failed to update system config');
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GitHub Extension Release Builder ───────────────────────────────────────────
+adminRouter.post('/release-extension', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'apps/extension'),
+      path.resolve(process.cwd(), '../../apps/extension'),
+      path.resolve(process.cwd(), '../extension'),
+    ];
+
+    let targetDir = possiblePaths.find((p) => fs.existsSync(p));
+    if (!targetDir) {
+      res.status(404).json({ error: 'Extension directory not found' });
+      return;
+    }
+
+    const zip = new AdmZip();
+    zip.addLocalFolder(targetDir);
+    const zipBuffer = zip.toBuffer();
+
+    const tag = req.body.tag || `v1.0.${Math.floor(Date.now() / 1000)}`;
+    const token = req.body.githubToken || process.env.GITHUB_TOKEN;
+    const repo = req.body.repo || 'kachakaran6/AutoEOD';
+
+    let releaseUrl: string | null = null;
+    let downloadUrl: string | null = null;
+
+    if (token) {
+      const createRelRes = await fetch(`https://api.github.com/repos/${repo}/releases`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'AutoEOD-Admin-Release',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tag_name: tag,
+          name: `AutoEOD Chrome Extension ${tag}`,
+          body: `Automated Chrome Extension release created via AutoEOD Admin Panel.\nAPI Base URL: ${req.body.apiBaseUrl || 'https://autoeod.onrender.com'}`,
+          draft: false,
+          prerelease: false,
+        }),
+      });
+
+      if (createRelRes.ok) {
+        const relData: any = await createRelRes.json();
+        releaseUrl = relData.html_url;
+        const uploadUrl = relData.upload_url.replace(/\{.*?\}$/, `?name=autoeod-extension-${tag}.zip`);
+
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'User-Agent': 'AutoEOD-Admin-Release',
+            'Content-Type': 'application/zip',
+          },
+          body: zipBuffer,
+        });
+
+        if (uploadRes.ok) {
+          const assetData: any = await uploadRes.json();
+          downloadUrl = assetData.browser_download_url;
+        }
+      }
+    }
+
+    await recordAuditLog({
+      action: 'BUILD_EXTENSION_RELEASE',
+      userId: req.userId,
+      details: { tag, releaseUrl, downloadUrl, sizeBytes: zipBuffer.length },
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      success: true,
+      tag,
+      releaseUrl,
+      downloadUrl,
+      sizeBytes: zipBuffer.length,
+      directDownloadUrl: `/api/admin/download-extension`,
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'Failed to create extension release');
+    res.status(500).json({ error: err.message || 'Failed to package extension' });
+  }
+});
+
+adminRouter.get('/download-extension', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'apps/extension'),
+      path.resolve(process.cwd(), '../../apps/extension'),
+      path.resolve(process.cwd(), '../extension'),
+    ];
+
+    let targetDir = possiblePaths.find((p) => fs.existsSync(p));
+    if (!targetDir) {
+      res.status(404).send('Extension directory not found');
+      return;
+    }
+
+    const zip = new AdmZip();
+    zip.addLocalFolder(targetDir);
+    const zipBuffer = zip.toBuffer();
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="autoeod-extension.zip"');
+    res.send(zipBuffer);
+  } catch (err: any) {
+    res.status(500).send(err.message || 'Download failed');
   }
 });
 
@@ -215,7 +331,6 @@ adminRouter.get('/templates', async (_req: Request, res: Response): Promise<void
       orderBy: { createdAt: 'asc' },
     });
 
-    // Auto-seed default templates if empty
     if (templates.length === 0) {
       const defaults = [
         {
