@@ -15,6 +15,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
+  role         String   @default("USER") // "USER" | "ADMIN"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -267,4 +268,15 @@ model TimelineSession {
   updatedAt         DateTime @updatedAt
 
   @@index([userId, startTime])
+}
+
+model SystemConfig {
+  id                  String   @id @default("global")
+  apiBaseUrl          String   @default("https://autoeod.onrender.com")
+  webBaseUrl          String   @default("https://autoeod.onrender.com")
+  maintenanceMode     Boolean  @default(false)
+  forceUpdate         Boolean  @default(false)
+  minExtensionVersion String   @default("1.0.0")
+  minDesktopVersion   String   @default("1.0.0")
+  updatedAt           DateTime @updatedAt
 }

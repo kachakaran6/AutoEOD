@@ -159,6 +159,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role?: string;
 }
 
 export interface DashboardData {
@@ -387,4 +388,68 @@ export const activityLog = {
       method: 'POST',
       body: JSON.stringify({ date, ids }),
     }),
+};
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export interface AdminSystemConfig {
+  id: string;
+  apiBaseUrl: string;
+  webBaseUrl: string;
+  maintenanceMode: boolean;
+  forceUpdate: boolean;
+  minExtensionVersion: string;
+  minDesktopVersion: string;
+  updatedAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  _count: {
+    reports: number;
+    activityEvents: number;
+    browserLogs: number;
+  };
+}
+
+export interface AdminHealth {
+  timestamp: string;
+  uptimeSeconds: number;
+  database: {
+    status: 'healthy' | 'unhealthy' | 'down';
+    latencyMs?: number;
+    error?: string;
+  };
+  redis: {
+    status: 'healthy' | 'unhealthy' | 'down';
+    latencyMs?: number;
+    error?: string;
+  };
+  queues: Record<string, {
+    active: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+    waiting: number;
+  }>;
+}
+
+export const admin = {
+  getConfig: () => apiRequest<AdminSystemConfig>('/admin/config'),
+  updateConfig: (data: Partial<AdminSystemConfig>) =>
+    apiRequest<AdminSystemConfig>('/admin/config', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  getUsers: () => apiRequest<AdminUser[]>('/admin/users'),
+  updateUserRole: (id: string, role: 'USER' | 'ADMIN') =>
+    apiRequest<AdminUser>(`/admin/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+  getHealth: () => apiRequest<AdminHealth>('/admin/health'),
 };

@@ -62,7 +62,7 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
   const accessToken = signAccessToken(user.id);
   const refreshToken = signRefreshToken(user.id);
   res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
-  res.status(201).json({ accessToken, user: { id: user.id, name: user.name, email: user.email } });
+  res.status(201).json({ accessToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
 // ── POST /api/auth/login ─────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
   const accessToken = signAccessToken(user.id);
   const refreshToken = signRefreshToken(user.id);
   res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
-  res.json({ accessToken, user: { id: user.id, name: user.name, email: user.email } });
+  res.json({ accessToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
 // ── POST /api/auth/refresh ───────────────────────────────────────────────────
@@ -106,7 +106,7 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
     const payload = verifyRefreshToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, role: true },
     });
     if (!user) {
       res.status(401).json({ error: 'User not found' });

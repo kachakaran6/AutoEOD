@@ -6,13 +6,33 @@ import path from 'path';
 // It requires an ExtensionToken or API Key from the AutoEOD settings.
 
 const POLL_INTERVAL_MS = 5000;
-const API_URL = process.env.AUTOEOD_API_URL || 'http://localhost:3001';
+const BOOTSTRAP_URL = process.env.AUTOEOD_BOOTSTRAP_URL || 'https://autoeod.onrender.com/api/config';
+let API_URL = process.env.AUTOEOD_API_URL || 'https://autoeod.onrender.com';
 const API_KEY = process.env.AUTOEOD_API_KEY;
 
 if (!API_KEY) {
   console.error("Error: AUTOEOD_API_KEY environment variable is required.");
   console.error("Please generate one in the AutoEOD web settings and set it.");
   process.exit(1);
+}
+
+// Fetch remote config on startup
+async function initRemoteConfig() {
+  try {
+    const res = await fetch(BOOTSTRAP_URL);
+    if (res.ok) {
+      const config = await res.json();
+      if (config.api_base_url) {
+        API_URL = config.api_base_url.replace(/\/$/, '');
+        console.log(`[RemoteConfig] Resolved API Base URL: ${API_URL}`);
+      }
+      if (config.maintenance_mode) {
+        console.warn(`[RemoteConfig] System is currently in Maintenance Mode.`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[RemoteConfig] Using fallback API URL: ${API_URL}`);
+  }
 }
 
 let sessionBuffer = [];
@@ -22,8 +42,6 @@ async function trackWindow() {
     const win = await activeWin();
     if (!win) return;
 
-    // Filter out very short noisy window changes or system stuff if needed
-    // win object has: title, owner.name, bounds, memoryUsage
     sessionBuffer.push({
       timestamp: new Date().toISOString(),
       appName: win.owner?.name || 'Unknown',
@@ -52,20 +70,23 @@ async function flushBuffer() {
 
     if (!res.ok) {
       console.error(`Failed to flush timeline events: ${res.status} ${res.statusText}`);
-      // re-queue
       sessionBuffer = [...payload, ...sessionBuffer];
     } else {
       console.log(`Flushed ${payload.length} window events successfully.`);
     }
   } catch (err) {
     console.error('Error flushing timeline events:', err.message);
-    // re-queue
     sessionBuffer = [...payload, ...sessionBuffer];
   }
 }
 
-console.log(`Starting AutoEOD Desktop Agent... Polling every ${POLL_INTERVAL_MS}ms`);
+async function start() {
+  await initRemoteConfig();
+  console.log(`Starting AutoEOD Desktop Agent... Polling every ${POLL_INTERVAL_MS}ms`);
 
-setInterval(trackWindow, POLL_INTERVAL_MS);
-// Flush every minute
-setInterval(flushBuffer, 60000);
+  setInterval(trackWindow, POLL_INTERVAL_MS);
+  // Flush every minute
+  setInterval(flushBuffer, 60000);
+}
+
+start();

@@ -24,6 +24,8 @@ import { activityLogRouter } from './routes/activity-log';
 import { extensionSettingsRouter } from './routes/extension-settings';
 import { holidaysRouter } from './routes/holidays';
 import { timelineRouter } from './routes/timeline';
+import { configRouter } from './routes/config';
+import { adminRouter } from './routes/admin';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -79,6 +81,8 @@ const authLimiter = rateLimit({
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/health', (_req: express.Request, res: express.Response) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.use('/api/config', configRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/auth/google', authLimiter, googleAuthRouter);
 app.use('/api/auth/zoho', authLimiter, zohoAuthRouter);
 app.use('/api/auth', authLimiter, authRouter);

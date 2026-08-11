@@ -1,11 +1,11 @@
 // apps/web/src/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, GitBranch, Puzzle, Settings, Zap, LogOut, Activity, FileText } from 'lucide-react'
+import { LayoutDashboard, GitBranch, Puzzle, Settings, Zap, LogOut, Activity, FileText, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 
-const navItems = [
+const baseNavItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/activity-log', label: 'Activity Radar', icon: Activity },
   { to: '/history', label: 'History', icon: FileText },
@@ -16,6 +16,13 @@ const navItems = [
 
 export function Sidebar() {
   const { user, logout } = useAuth()
+
+  const navItems = [
+    ...baseNavItems,
+    ...(user?.role === 'ADMIN'
+      ? [{ to: '/admin', label: 'Admin Panel', icon: Shield }]
+      : []),
+  ]
 
   return (
     <aside className="flex h-full w-60 flex-col border-r border-border bg-card/50 backdrop-blur-sm">
@@ -37,7 +44,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={end}
-            id={`nav-${label.toLowerCase()}`}
+            id={`nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',

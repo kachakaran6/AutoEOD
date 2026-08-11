@@ -15,6 +15,16 @@ import { ReportPage } from '@/pages/ReportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ReportsHistoryPage } from '@/pages/ReportsHistoryPage'
+import { AdminPage } from '@/pages/Admin'
+import { useAuth } from '@/contexts/AuthContext'
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  if (!user || user.role !== 'ADMIN') {
+    return <Navigate to="/" replace />
+  }
+  return <>{children}</>
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +61,14 @@ export default function App() {
                 <Route path="/reports/:date" element={<ReportPage />} />
                 <Route path="/history" element={<ReportsHistoryPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminPage />
+                    </AdminRoute>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

@@ -1,11 +1,51 @@
+// apps/extension/src/lib/api.ts
+// Dynamic Remote Configuration client for AutoEOD Chrome Extension
+
+const BOOTSTRAP_CONFIG_URL = 'https://autoeod.onrender.com/api/config';
+const FALLBACK_API_BASE_URL = 'https://autoeod.onrender.com';
+
+export interface RemoteConfig {
+  api_base_url: string;
+  web_base_url: string;
+  maintenance_mode: boolean;
+  force_update: boolean;
+}
+
+export async function fetchRemoteConfig(): Promise<RemoteConfig> {
+  try {
+    const res = await fetch(BOOTSTRAP_CONFIG_URL);
+    if (res.ok) {
+      const config = await res.json();
+      await chrome.storage.local.set({ remoteConfig: config });
+      return config;
+    }
+  } catch {
+    // Ignore fetch error and use cached or fallback
+  }
+
+  const cached = await chrome.storage.local.get('remoteConfig');
+  if (cached.remoteConfig) {
+    return cached.remoteConfig as RemoteConfig;
+  }
+
+  return {
+    api_base_url: FALLBACK_API_BASE_URL,
+    web_base_url: FALLBACK_API_BASE_URL,
+    maintenance_mode: false,
+    force_update: false,
+  };
+}
+
 export async function getApiToken(): Promise<string | null> {
   const result = await chrome.storage.local.get('apiToken');
   return result.apiToken || null;
 }
 
-export function getApiEndpoint(): string {
+export async function getApiEndpoint(): Promise<string> {
   if (import.meta.env.DEV) {
-    return 'http://localhost:3001/api/extension/activity';
+    return 'http://localhost:3001/api/extension/browser-activity';
   }
-  return 'https://autoeod-production-a43e.up.railway.app/api/extension/activity';
+  const config = await fetchRemoteConfig();
+  const baseUrl = config.api_base_url.replace(/\/$/, '');
+  return `${baseUrl}/api/extension/browser-activity`;
 }

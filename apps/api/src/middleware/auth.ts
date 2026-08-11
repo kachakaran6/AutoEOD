@@ -1,14 +1,16 @@
 // apps/api/src/middleware/auth.ts
-// Auth middleware: validates Bearer access token and attaches req.userId
+// Auth middleware: validates Bearer access token and attaches req.userId, req.userRole
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
+import { prisma } from '@autoeod/db';
 
 declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      userRole?: string;
     }
   }
 }
@@ -28,5 +30,30 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   } catch (err) {
     logger.debug({ err }, 'Access token verification failed');
     res.status(401).json({ error: 'Invalid or expired access token' });
+  }
+}
+
+export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.userId) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true },
+    });
+
+    if (!user || user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    req.userRole = user.role;
+    next();
+  } catch (err) {
+    logger.error({ err }, 'Admin check failed');
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
