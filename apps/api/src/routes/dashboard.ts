@@ -25,11 +25,11 @@ dashboardRouter.get('/today', requireAuth, async (req: Request, res: Response): 
   });
 
   const stats = {
-    commits: events.filter((e) => e.type === 'commit').length,
-    prsOpened: events.filter((e) => e.type === 'pull_request').length,
+    commits: events.filter((e: any) => e.type === 'commit').length,
+    prsOpened: events.filter((e: any) => e.type === 'pull_request').length,
     prsMerged: 0, // Will be counted properly below
-    reviews: events.filter((e) => e.type === 'pr_review').length,
-    issues: events.filter((e) => e.type === 'issue' || e.type === 'issue_comment').length,
+    reviews: events.filter((e: any) => e.type === 'pr_review').length,
+    issues: events.filter((e: any) => e.type === 'issue' || e.type === 'issue_comment').length,
     total: events.length,
   };
 

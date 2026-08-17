@@ -1,15 +1,36 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy everything
-COPY . .
+# Install native dependencies and SSL libraries needed for Prisma and bcrypt compilation on Alpine
+RUN apk add --no-cache openssl libc6-compat python3 make g++ curl
 
-# Install dependencies (workspaces included)
+# Copy workspace package manifests to leverage Docker layer caching
+COPY package.json package-lock.json ./
+COPY packages/db/package.json ./packages/db/
+COPY apps/api/package.json ./apps/api/
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/web/package.json ./apps/web/
+COPY apps/desktop/package.json ./apps/desktop/
+COPY apps/extension/package.json ./apps/extension/
+
+# Install dependencies for all workspaces
 RUN npm ci
 
-# Build all backend packages (API, Worker, DB)
-RUN npm run build
+# Copy entire repository source
+COPY . .
 
-# The command will be overridden in docker-compose.yml for API vs Worker
-CMD ["npm", "start"]
+# Generate Prisma client and compile backend TypeScript projects (packages/db, apps/api, apps/worker)
+RUN npm run build:backend
+
+# Set production environment variables
+ENV NODE_ENV=production
+ENV PORT=3001
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:3001/health || exit 1
+
+# Default command starts the API service (overridden in docker-compose.yml for the worker)
+CMD ["npm", "run", "start:api"]

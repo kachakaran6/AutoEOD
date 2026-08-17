@@ -2,6 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@autoeod/db": ["../../packages/db/dist/index"]
+    },
     "lib": ["ES2022"],
     "strict": true,
     "esModuleInterop": true,

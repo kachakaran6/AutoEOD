@@ -33,7 +33,7 @@ async function requireExtensionAuth(req: Request, res: Response, next: NextFunct
   prisma.extensionToken.update({
     where: { id: extensionToken.id },
     data: { lastUsedAt: new Date() },
-  }).catch(err => logger.error({ err }, 'Failed to update lastUsedAt'));
+  }).catch((err: any) => logger.error({ err }, 'Failed to update lastUsedAt'));
 
   next();
 }

@@ -200,7 +200,7 @@ Below is a JSON array of tracked sessions with 'id', 'appName', 'windowTitle', a
 For each session, provide a 1-sentence summary of what the user was doing. Keep it professional.
 
 Input Sessions:
-${JSON.stringify(sessions.map(s => ({ id: s.id, appName: s.appName, windowTitle: s.windowTitle, duration: s.durationSeconds })))}
+${JSON.stringify(sessions.map((s: any) => ({ id: s.id, appName: s.appName, windowTitle: s.windowTitle, duration: s.durationSeconds })))}
 
 Return ONLY a JSON object mapping the 'id' to the generated 'summary' string.
 Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed documentation for React" }

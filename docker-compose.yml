@@ -1,21 +1,30 @@
+name: autoeod
+
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: autoeod-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: autoeod
-      POSTGRES_PASSWORD: autoeod
-      POSTGRES_DB: autoeod
+      POSTGRES_USER: ${POSTGRES_USER:-autoeod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autoeod}
+      POSTGRES_DB: ${POSTGRES_DB:-autoeod}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U autoeod"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autoeod} -d ${POSTGRES_DB:-autoeod}"]
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+      start_period: 5s
+    networks:
+      - autoeod_network
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: autoeod-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --save 60 1 --loglevel warning
     volumes:
       - redisdata:/data
     healthcheck:
@@ -23,50 +32,132 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+      start_period: 5s
+    networks:
+      - autoeod_network
 
   api:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.backend
-    command: npm start
+    container_name: autoeod-api
+    restart: unless-stopped
+    command: npm run start:api
     ports:
-      - "3001:3001"
+      - "${API_PORT:-3001}:3001"
     environment:
-      - DATABASE_URL=postgres://autoeod:autoeod@postgres:5432/autoeod
-      - REDIS_URL=redis://redis:6379
-      # Add other API environment variables here
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:-postgresql://autoeod:autoeod@postgres:5432/autoeod}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-jwt-access-secret-min-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-jwt-refresh-secret-min-32-chars}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      ZOHO_CLIENT_ID: ${ZOHO_CLIENT_ID:-}
+      ZOHO_CLIENT_SECRET: ${ZOHO_CLIENT_SECRET:-}
+      ZOHO_CALLBACK_URL: ${ZOHO_CALLBACK_URL:-}
+      ZOHO_OAUTH_DOMAIN: ${ZOHO_OAUTH_DOMAIN:-https://accounts.zoho.com}
+      ZOHO_API_DOMAIN: ${ZOHO_API_DOMAIN:-https://mail.zoho.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_FALLBACK_MODEL: ${OPENAI_FALLBACK_MODEL:-gpt-4o-mini}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoEOD <reports@yourdomain.com>}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - autoeod_network
 
   worker:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.backend
+    container_name: autoeod-worker
+    restart: unless-stopped
     command: npm run start:worker
     environment:
-      - DATABASE_URL=postgres://autoeod:autoeod@postgres:5432/autoeod
-      - REDIS_URL=redis://redis:6379
-      # Add other worker environment variables here
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:-postgresql://autoeod:autoeod@postgres:5432/autoeod}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-jwt-access-secret-min-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-jwt-refresh-secret-min-32-chars}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      ZOHO_CLIENT_ID: ${ZOHO_CLIENT_ID:-}
+      ZOHO_CLIENT_SECRET: ${ZOHO_CLIENT_SECRET:-}
+      ZOHO_CALLBACK_URL: ${ZOHO_CALLBACK_URL:-}
+      ZOHO_OAUTH_DOMAIN: ${ZOHO_OAUTH_DOMAIN:-https://accounts.zoho.com}
+      ZOHO_API_DOMAIN: ${ZOHO_API_DOMAIN:-https://mail.zoho.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_FALLBACK_MODEL: ${OPENAI_FALLBACK_MODEL:-gpt-4o-mini}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoEOD <reports@yourdomain.com>}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+      api:
+        condition: service_started
+    networks:
+      - autoeod_network
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
-    ports:
-      - "80:80"
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    container_name: autoeod-web
     restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - autoeod_network
 
 volumes:
   pgdata:
+    driver: local
   redisdata:
+    driver: local
+
+networks:
+  autoeod_network:
+    driver: bridge
