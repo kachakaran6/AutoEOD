@@ -1,6 +1,7 @@
 // apps/worker/src/worker.ts
 // AutoEOD Worker process entrypoint — Optimized for Upstash Redis Free Tier
 
+import 'dotenv/config';
 import { Worker, Queue } from 'bullmq';
 import { redisConnection } from './lib/redis';
 import { logger } from './lib/logger';

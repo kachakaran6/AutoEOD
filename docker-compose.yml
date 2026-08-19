@@ -1,6 +1,8 @@
 name: autoeod
 
 services:
+  # ── (Optional) PostgreSQL Database ──
+  # If you deploy a separate PostgreSQL service in Coolify or use Neon/Supabase, you can comment this out.
   postgres:
     image: postgres:16-alpine
     container_name: autoeod-postgres
@@ -20,6 +22,8 @@ services:
     networks:
       - autoeod_network
 
+  # ── (Optional) Redis Service ──
+  # If you deploy a separate Redis service in Coolify or use Upstash, you can comment this out.
   redis:
     image: redis:7-alpine
     container_name: autoeod-redis
@@ -36,24 +40,26 @@ services:
     networks:
       - autoeod_network
 
+  # ── Backend API & Background Worker ──
   api:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    image: autoeod-backend:latest
     container_name: autoeod-api
     restart: unless-stopped
-    command: npm run start:api
+    command: npm start
     ports:
       - "${API_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: ${DATABASE_URL:-postgresql://autoeod:autoeod@postgres:5432/autoeod}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-jwt-access-secret-min-32-chars}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-jwt-refresh-secret-min-32-chars}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
@@ -72,13 +78,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-AutoEOD <reports@yourdomain.com>}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -86,50 +87,7 @@ services:
     networks:
       - autoeod_network
 
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: autoeod-worker
-    restart: unless-stopped
-    command: npm run start:worker
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: ${DATABASE_URL:-postgresql://autoeod:autoeod@postgres:5432/autoeod}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-this-jwt-access-secret-min-32-chars}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-jwt-refresh-secret-min-32-chars}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
-      ZOHO_CLIENT_ID: ${ZOHO_CLIENT_ID:-}
-      ZOHO_CLIENT_SECRET: ${ZOHO_CLIENT_SECRET:-}
-      ZOHO_CALLBACK_URL: ${ZOHO_CALLBACK_URL:-}
-      ZOHO_OAUTH_DOMAIN: ${ZOHO_OAUTH_DOMAIN:-https://accounts.zoho.com}
-      ZOHO_API_DOMAIN: ${ZOHO_API_DOMAIN:-https://mail.zoho.com}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      OPENAI_FALLBACK_MODEL: ${OPENAI_FALLBACK_MODEL:-gpt-4o-mini}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-AutoEOD <reports@yourdomain.com>}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_started
-    networks:
-      - autoeod_network
-
+  # ── Frontend Web Dashboard ──
   web:
     build:
       context: .
@@ -140,9 +98,6 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-3000}:80"
-    depends_on:
-      api:
-        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/healthz"]
       interval: 15s

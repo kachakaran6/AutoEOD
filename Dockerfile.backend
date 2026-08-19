@@ -1,11 +1,18 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install native dependencies and SSL libraries needed for Prisma and bcrypt compilation on Alpine
-RUN apk add --no-cache openssl libc6-compat python3 make g++ curl
+# Install curl for healthchecks and OpenSSL for Prisma client
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace package manifests to leverage Docker layer caching
+# Optimize memory limit during compilation on low-RAM VPS
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
+# Copy package manifests for workspace dependency resolution
 COPY package.json package-lock.json ./
 COPY packages/db/package.json ./packages/db/
 COPY apps/api/package.json ./apps/api/
@@ -14,10 +21,10 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/desktop/package.json ./apps/desktop/
 COPY apps/extension/package.json ./apps/extension/
 
-# Install dependencies for all workspaces
-RUN npm ci
+# Install dependencies cleanly with offline preference
+RUN npm ci --prefer-offline --no-audit --no-fund
 
-# Copy entire repository source
+# Copy full repository source code
 COPY . .
 
 # Generate Prisma client and compile backend TypeScript projects (packages/db, apps/api, apps/worker)
@@ -30,7 +37,7 @@ ENV PORT=3001
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Default command starts the API service (overridden in docker-compose.yml for the worker)
 CMD ["npm", "run", "start:api"]
