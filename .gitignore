@@ -39,3 +39,11 @@ coverage/
 
 # Turbo
 .turbo/
+
+# Scratch & Archives
+scratch/
+*.zip
+
+# Source compiled files
+packages/db/src/*.js
+packages/db/src/*.js.map
