@@ -1,8 +1,8 @@
 // apps/extension/src/lib/api.ts
 // Dynamic Remote Configuration client for AutoEOD Chrome Extension
 
-const BOOTSTRAP_CONFIG_URL = 'https://autoeod.onrender.com/api/config';
-const FALLBACK_API_BASE_URL = 'https://autoeod.onrender.com';
+const BOOTSTRAP_CONFIG_URL = 'https://autoeod-be.kachakaran.tech/api/config';
+const FALLBACK_API_BASE_URL = 'https://autoeod-be.kachakaran.tech';
 
 export interface RemoteConfig {
   api_base_url: string;

@@ -140,7 +140,7 @@ adminRouter.post('/release-extension', async (req: Request, res: Response): Prom
         body: JSON.stringify({
           tag_name: tag,
           name: `AutoEOD Chrome Extension ${tag}`,
-          body: `Automated Chrome Extension release created via AutoEOD Admin Panel.\nAPI Base URL: ${req.body.apiBaseUrl || 'https://autoeod.onrender.com'}`,
+          body: `Automated Chrome Extension release created via AutoEOD Admin Panel.\nAPI Base URL: ${req.body.apiBaseUrl || 'https://autoeod-be.kachakaran.tech'}`,
           draft: false,
           prerelease: false,
         }),

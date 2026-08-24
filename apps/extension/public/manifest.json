@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
   "name": "AutoEOD \u2014 Activity Radar",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Universal browser activity capture for your AutoEOD daily report.",
   "permissions": ["storage", "alarms", "tabs"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:3001/*",
-    "https://autoeod-production-a43e.up.railway.app/*"
+    "https://autoeod-be.kachakaran.tech/*"
   ],
   "background": {
     "service_worker": "background.js",

@@ -6,8 +6,8 @@ import path from 'path';
 // It requires an ExtensionToken or API Key from the AutoEOD settings.
 
 const POLL_INTERVAL_MS = 5000;
-const BOOTSTRAP_URL = process.env.AUTOEOD_BOOTSTRAP_URL || 'https://autoeod.onrender.com/api/config';
-let API_URL = process.env.AUTOEOD_API_URL || 'https://autoeod.onrender.com';
+const BOOTSTRAP_URL = process.env.AUTOEOD_BOOTSTRAP_URL || 'https://autoeod-be.kachakaran.tech/api/config';
+let API_URL = process.env.AUTOEOD_API_URL || 'https://autoeod-be.kachakaran.tech';
 const API_KEY = process.env.AUTOEOD_API_KEY;
 
 if (!API_KEY) {
