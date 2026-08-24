@@ -23,7 +23,7 @@ const generateReportQueue = new Queue('generate-report', { connection: redisConn
 const UPSTASH_WORKER_OPTS = {
   connection: redisConnection as any,
   drainDelay: 300,         // Wait 5 minutes before re-checking an empty queue
-  stalledInterval: 0,      // Disable continuous stalled job scanning (cuts 99% of idle Redis ops)
+  stalledInterval: 30000,  // Stalled job check interval in ms (BullMQ requires > 0)
   lockDuration: 120000,    // 2 minute job lock
 };
 
