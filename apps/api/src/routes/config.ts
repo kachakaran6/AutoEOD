@@ -9,14 +9,14 @@ export const configRouter = Router();
 
 // Helper to retrieve or lazy-initialize global SystemConfig
 export async function getOrCreateSystemConfig() {
+  const defaultApiUrl = process.env.RENDER_EXTERNAL_URL || process.env.API_URL || 'https://autoeod-be.kachakaran.tech';
+  const defaultWebUrl = process.env.FRONTEND_URL || 'https://autoeod.kachakaran.tech';
+
   let config = await prisma.systemConfig.findUnique({
     where: { id: 'global' },
   });
 
   if (!config) {
-    const defaultApiUrl = process.env.RENDER_EXTERNAL_URL || 'https://autoeod.onrender.com';
-    const defaultWebUrl = process.env.FRONTEND_URL || 'https://autoeod.onrender.com';
-    
     config = await prisma.systemConfig.create({
       data: {
         id: 'global',
@@ -29,6 +29,14 @@ export async function getOrCreateSystemConfig() {
       },
     });
     logger.info({ config }, 'Initialized default SystemConfig row in database');
+  } else if (config.apiBaseUrl !== defaultApiUrl || config.webBaseUrl !== defaultWebUrl) {
+    config = await prisma.systemConfig.update({
+      where: { id: 'global' },
+      data: {
+        apiBaseUrl: defaultApiUrl,
+        webBaseUrl: defaultWebUrl,
+      },
+    });
   }
 
   return config;
