@@ -137,17 +137,17 @@ export function SettingsPage() {
         </Button>
       </div>
 
-      {/* ── Appearance & Theme Studio ──────────────────────────────────────── */}
+      {/* ── Accent Color Studio ──────────────────────────────────────── */}
       <Card className="border-border bg-card">
-        <CardHeader className="border-b border-border/70 pb-4">
+        <CardHeader className="border-b border-border/70 pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Palette className="w-4 h-4 text-primary" />
-                Appearance & Theme Studio
+                Accent Color
               </CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Customize your color scheme, dark/light canvas mode, and personalized accent palette.
+                Choose your personalized highlight accent color across buttons, badges, and navigation.
               </CardDescription>
             </div>
             <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium capitalize flex items-center gap-1.5">
@@ -157,108 +157,34 @@ export function SettingsPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="pt-5 space-y-6">
-          {/* Theme Mode Selector */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-              Interface Mode
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                {
-                  id: 'light' as const,
-                  label: 'Light Mode',
-                  desc: 'Soft slate & crisp daytime surfaces',
-                  icon: Sun,
-                  iconColor: 'text-amber-500',
-                  previewBg: 'bg-slate-100 border-slate-300',
-                },
-                {
-                  id: 'dark' as const,
-                  label: 'Dark Mode',
-                  desc: 'Deep obsidian luxury dark canvas',
-                  icon: Moon,
-                  iconColor: 'text-indigo-400',
-                  previewBg: 'bg-slate-950 border-slate-800',
-                },
-                {
-                  id: 'system' as const,
-                  label: 'System Match',
-                  desc: 'Synchronize with OS system preferences',
-                  icon: Monitor,
-                  iconColor: 'text-sky-400',
-                  previewBg: 'bg-gradient-to-r from-slate-200 to-slate-900 border-slate-400',
-                },
-              ].map((item) => {
-                const isSelected = theme === item.id;
-                const IconComponent = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setTheme(item.id)}
-                    className={`flex flex-col text-left p-4 rounded-xl border transition-all duration-150 relative ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10 ring-1 ring-primary'
-                        : 'border-border bg-card/60 hover:bg-muted/50 hover:border-border/80'
-                    }`}
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {accentOptions.map((opt) => {
+              const isSelected = accentColor === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setAccentColor(opt.id);
+                    toast.success(`Accent color set to ${opt.label}`);
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all duration-150 text-xs font-medium ${
+                    isSelected
+                      ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary shadow-sm shadow-primary/20 scale-[1.02]'
+                      : 'border-border bg-card hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 shadow-sm ${opt.bgClass}`}
                   >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <div className="flex items-center gap-2">
-                        <IconComponent className={`w-4 h-4 ${item.iconColor}`} />
-                        <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                      </div>
-                      {isSelected && (
-                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Accent Color Palettes */}
-          <div className="space-y-2.5 pt-2 border-t border-border/60">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                Accent Color
-              </Label>
-              <span className="text-xs text-primary font-medium">
-                {currentAccent?.label}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {accentOptions.map((opt) => {
-                const isSelected = accentColor === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      setAccentColor(opt.id);
-                      toast.success(`Accent color set to ${opt.label}`);
-                    }}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all duration-150 text-xs font-medium ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary shadow-sm shadow-primary/20 scale-[1.02]'
-                        : 'border-border bg-card hover:bg-muted/70 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span
-                      className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 shadow-sm ${opt.bgClass}`}
-                    >
-                      {isSelected && (
-                        <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />
-                      )}
-                    </span>
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                    {isSelected && (
+                      <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />
+                    )}
+                  </span>
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

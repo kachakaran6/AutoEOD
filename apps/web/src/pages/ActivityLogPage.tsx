@@ -1,37 +1,44 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import type { ColumnDef, PaginationState } from '@tanstack/react-table'
 import { format, addSeconds } from 'date-fns'
-import { Activity, ShieldAlert, Trash2, CheckSquare, Square, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Activity,
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Calendar,
+  Sparkles,
+  ArrowUpRight,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
+  Globe,
+  Filter,
+  Check,
+} from 'lucide-react'
 
 import { activityLog } from '@/lib/api'
 import type { BrowserActivityLog } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Card } from '@/components/ui/card'
 
 export function ActivityLogPage() {
   const queryClient = useQueryClient()
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 50,
-  })
+  const [page, setPage] = useState(1)
+  const pageSize = 25
   
   const [domainFilter, setDomainFilter] = useState('')
   const [dateFilter, setDateFilter] = useState(() => format(new Date(), 'yyyy-MM-dd'))
 
   const { data, isLoading } = useQuery({
-    queryKey: ['activityLog', pagination.pageIndex, pagination.pageSize, domainFilter, dateFilter],
+    queryKey: ['activityLog', page, pageSize, domainFilter, dateFilter],
     queryFn: () => activityLog.list({
-      page: pagination.pageIndex + 1,
-      limit: pagination.pageSize,
+      page,
+      limit: pageSize,
       domain: domainFilter || undefined,
       date: dateFilter || undefined,
     }),
@@ -62,227 +69,292 @@ export function ActivityLogPage() {
     },
   })
 
-  const columns: ColumnDef<BrowserActivityLog>[] = [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <input
-          type="checkbox"
-          className="h-4 w-4 rounded border-gray-300"
-          checked={table.getIsAllPageRowsSelected()}
-          onChange={(e) => {
-            bulkSelectMutation.mutate(e.target.checked)
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          {row.original.promotedToEventId ? (
-            <Badge variant="secondary" className="text-[10px]">Promoted</Badge>
-          ) : (
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300"
-              checked={row.original.selected}
-              onChange={(e) => {
-                toggleSelectionMutation.mutate({ id: row.original.id, selected: e.target.checked })
-              }}
-            />
-          )}
-        </div>
-      ),
-      size: 40,
-    },
-    {
-      accessorKey: 'tabOpenedAt',
-      header: 'Start - End',
-      cell: ({ row }) => {
-        const start = new Date(row.original.tabOpenedAt)
-        const end = addSeconds(start, row.original.durationSeconds)
-        return <div className="text-sm whitespace-nowrap">{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</div>
-      },
-      size: 110,
-    },
-    {
-      accessorKey: 'durationSeconds',
-      header: 'Duration',
-      cell: ({ row }) => {
-        const secs = row.original.durationSeconds
-        if (secs < 60) return <div className="text-sm text-muted-foreground">{secs}s</div>
-        const mins = Math.floor(secs / 60)
-        return <div className="text-sm font-medium">{mins}m {secs % 60}s</div>
-      },
-      size: 80,
-    },
-    {
-      accessorKey: 'domain',
-      header: 'Domain',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <img 
-            src={`https://www.google.com/s2/favicons?domain=${row.original.domain}&sz=32`} 
-            className="w-4 h-4 rounded-sm"
-            alt=""
-          />
-          <span className="text-sm font-medium">{row.original.domain}</span>
-          {row.original.captureTier === 1 && (
-            <Badge variant="outline" className="text-[10px] ml-1 bg-blue-500/10 text-blue-500">Tier 1</Badge>
-          )}
-          {row.original.captureTier === 2 && (
-            <Badge variant="outline" className="text-[10px] ml-1 bg-purple-500/10 text-purple-500">Tier 2</Badge>
-          )}
-        </div>
-      ),
-      size: 200,
-    },
-    {
-      accessorKey: 'pageTitle',
-      header: 'Page & Details',
-      cell: ({ row }) => {
-        let detailNode = null;
-        if (row.original.captureTier === 1 && row.original.snapshotText) {
-          const text = row.original.snapshotText.replace(/\s+/g, ' ').substring(0, 100);
-          detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm" title={row.original.snapshotText}>Snippet: {text}...</div>;
-        } else if (row.original.captureTier === 2 && row.original.adapterPayload) {
-          const payload = row.original.adapterPayload as any;
-          if (payload.title) {
-            detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm">Conversation: {payload.title}</div>;
-          } else if (payload.messages && payload.messages.length > 0) {
-            detailNode = <div className="text-xs text-muted-foreground mt-1 truncate max-w-sm">Exchanged {payload.messages.length} messages</div>;
-          }
-        }
-        
-        return (
-          <div className="flex flex-col">
-            <div className="text-sm font-medium truncate max-w-md" title={row.original.pageTitle}>
-              {row.original.pageTitle || 'Untitled Page'}
-            </div>
-            {detailNode}
-          </div>
-        );
-      },
-    },
-  ]
-
-  const table = useReactTable({
-    data: data?.data ?? [],
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    pageCount: data?.meta.totalPages ?? -1,
-    state: {
-      pagination,
-    },
-    onPaginationChange: setPagination,
-    manualPagination: true,
-  })
+  const logs = data?.data || []
+  const totalLogs = data?.meta.total || 0
+  const totalPages = Math.ceil(totalLogs / pageSize) || 1
+  const selectedCount = logs.filter(l => l.selected && !l.promotedToEventId).length
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex-1"></div>
-        <div className="flex items-center gap-2">
+      {/* ── Page Header ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Activity className="w-6 h-6 text-primary" />
+            Activity Radar
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Inspect captured browser navigation, ChatGPT research, and promote key items into your daily report.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <Button 
-            variant="default" 
             onClick={() => promoteMutation.mutate()}
-            disabled={promoteMutation.isPending}
+            disabled={promoteMutation.isPending || (selectedCount === 0 && totalLogs === 0)}
+            className="gap-2 text-xs font-semibold h-9 rounded-xl shadow-sm"
           >
+            <Sparkles className="w-3.5 h-3.5" />
             Promote Selected to Report
+            {selectedCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-primary-foreground text-[10px] font-mono font-bold">
+                {selectedCount}
+              </span>
+            )}
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <Input 
-          type="date" 
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="w-40"
-        />
-        <Input
-          placeholder="Filter by domain..."
-          value={domainFilter}
-          onChange={(e) => setDomainFilter(e.target.value)}
-          className="max-w-xs"
-        />
-        <div className="ml-auto text-sm text-muted-foreground">
-          Showing {data?.data.length || 0} of {data?.meta.total || 0} activities
-        </div>
-      </div>
+      {/* ── Filter Toolbar Card ────────────────────────────────────── */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-3.5 sm:p-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+              {/* Date Selector */}
+              <div className="relative">
+                <Input 
+                  type="date" 
+                  value={dateFilter}
+                  onChange={(e) => {
+                    setDateFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="w-full sm:w-44 text-xs h-9 pl-3 pr-2 rounded-xl bg-background"
+                />
+              </div>
 
-      <Card className="rounded-md border overflow-hidden">
-        <div className="w-full overflow-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 border-b">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="h-10 px-4 font-medium text-muted-foreground align-middle" style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                    Loading activity logs...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+              {/* Domain / Text Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Filter by domain or title..."
+                  value={domainFilter}
+                  onChange={(e) => {
+                    setDomainFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="pl-9 text-xs h-9 rounded-xl bg-background w-full"
+                />
+              </div>
+            </div>
+
+            {/* Quick selection actions & count */}
+            <div className="flex items-center justify-between md:justify-end gap-2 text-xs border-t md:border-t-0 pt-2 md:pt-0 border-border">
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => bulkSelectMutation.mutate(true)}
+                  disabled={logs.length === 0}
+                  className="h-8 text-xs px-2.5 rounded-lg"
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => bulkSelectMutation.mutate(false)}
+                  disabled={logs.length === 0}
+                  className="h-8 text-xs px-2.5 rounded-lg text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </Button>
+              </div>
+
+              <Badge variant="secondary" className="text-[11px] font-normal px-2 py-0.5">
+                {totalLogs} {totalLogs === 1 ? 'activity' : 'activities'}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Activity Table / List Card ─────────────────────────────── */}
+      <Card className="border-border bg-card overflow-hidden">
+        {isLoading ? (
+          <div className="py-16 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
+            <Activity className="h-6 w-6 text-primary animate-pulse" />
+            Loading activity stream...
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="py-16 px-4 text-center flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-muted/60 border border-border flex items-center justify-center text-muted-foreground">
+              <Globe className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">No activity logs recorded</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                No activity detected for {dateFilter}. Make sure your AutoEOD browser extension is active and connected.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {/* Desktop Table Header (hidden on small screens) */}
+            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="col-span-1 flex items-center">
+                <span>Select</span>
+              </div>
+              <div className="col-span-2">Time Window</div>
+              <div className="col-span-2">Duration</div>
+              <div className="col-span-3">Domain</div>
+              <div className="col-span-4">Page Details & Title</div>
+            </div>
+
+            {/* List items (responsive for both desktop & mobile) */}
+            <div className="divide-y divide-border">
+              {logs.map((log) => {
+                const start = new Date(log.tabOpenedAt)
+                const end = log.tabClosedAt ? new Date(log.tabClosedAt) : addSeconds(start, log.durationSeconds)
+                const isSelected = log.selected
+                const isPromoted = Boolean(log.promotedToEventId)
+
+                return (
+                  <div
+                    key={log.id}
+                    className={`p-3.5 sm:p-4 transition-colors hover:bg-muted/30 ${
+                      isSelected ? 'bg-primary/5' : ''
+                    }`}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                    No activity found for this period.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
-          <div className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                    {/* Desktop layout */}
+                    <div className="hidden md:grid grid-cols-12 gap-4 items-center">
+                      <div className="col-span-1 flex items-center">
+                        {isPromoted ? (
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                            Promoted
+                          </Badge>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) =>
+                              toggleSelectionMutation.mutate({
+                                id: log.id,
+                                selected: e.target.checked,
+                              })
+                            }
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                          />
+                        )}
+                      </div>
+
+                      <div className="col-span-2 text-xs font-mono text-muted-foreground">
+                        {format(start, 'HH:mm')} – {format(end, 'HH:mm')}
+                      </div>
+
+                      <div className="col-span-2">
+                        <span className="text-xs font-medium text-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/60">
+                          {log.durationSeconds < 60
+                            ? `${log.durationSeconds}s`
+                            : `${Math.floor(log.durationSeconds / 60)}m ${log.durationSeconds % 60}s`}
+                        </span>
+                      </div>
+
+                      <div className="col-span-3 flex items-center gap-1.5 min-w-0">
+                        <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {log.domain}
+                        </span>
+                        {log.isSuspicious && (
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Suspicious activity" />
+                        )}
+                      </div>
+
+                      <div className="col-span-4 min-w-0">
+                        <p className="text-xs text-foreground font-medium truncate" title={log.pageTitle || log.url}>
+                          {log.pageTitle || log.url}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate font-mono mt-0.5">
+                          {log.url}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Mobile layout */}
+                    <div className="md:hidden flex items-start gap-3">
+                      <div className="pt-0.5">
+                        {isPromoted ? (
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1 bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                            ✓
+                          </Badge>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) =>
+                              toggleSelectionMutation.mutate({
+                                id: log.id,
+                                selected: e.target.checked,
+                              })
+                            }
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-foreground truncate flex items-center gap-1">
+                            <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                            {log.domain}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded">
+                            {log.durationSeconds < 60
+                              ? `${log.durationSeconds}s`
+                              : `${Math.floor(log.durationSeconds / 60)}m`}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-foreground font-medium line-clamp-1">
+                          {log.pageTitle || log.url}
+                        </p>
+
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                          <span>
+                            {format(start, 'HH:mm')} – {format(end, 'HH:mm')}
+                          </span>
+                          {isPromoted && (
+                            <span className="text-emerald-500 font-semibold">Promoted</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+        )}
+
+        {/* Pagination Footer */}
+        {totalLogs > pageSize && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20">
+            <span className="text-xs text-muted-foreground">
+              Page {page} of {totalPages} ({totalLogs} items)
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="h-8 w-8 p-0 rounded-lg"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="h-8 w-8 p-0 rounded-lg"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Card>
     </div>
   )

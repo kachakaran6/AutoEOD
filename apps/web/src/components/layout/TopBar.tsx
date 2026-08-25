@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun } from 'lucide-react'
+import { Bell, Moon, Sun, Menu } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { notifications as notificationsApi } from '@/lib/api'
@@ -11,9 +11,10 @@ import { format } from 'date-fns'
 
 interface TopBarProps {
   pathname: string
+  onToggleMobileNav?: () => void
 }
 
-export function TopBar({ pathname }: TopBarProps) {
+export function TopBar({ pathname, onToggleMobileNav }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false)
   const { theme, setTheme } = useTheme()
   const queryClient = useQueryClient()
@@ -52,20 +53,20 @@ export function TopBar({ pathname }: TopBarProps) {
     }
 
     return (
-      <nav className="flex items-center text-sm font-medium text-muted-foreground space-x-2">
-        <Link to="/" className="hover:text-foreground transition-colors">Dashboard</Link>
+      <nav className="flex items-center text-sm font-medium text-muted-foreground space-x-1.5 sm:space-x-2">
+        <Link to="/" className="hover:text-foreground transition-colors shrink-0">Dashboard</Link>
         {paths.map((path, index) => {
           const isLast = index === paths.length - 1
           const href = '/' + paths.slice(0, index + 1).join('/')
           const formattedPath = path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
           
           return (
-            <div key={path} className="flex items-center space-x-2">
+            <div key={path} className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
               <span className="text-border">/</span>
               {isLast ? (
-                <span className="text-foreground font-semibold">{formattedPath}</span>
+                <span className="text-foreground font-semibold truncate max-w-[120px] sm:max-w-none">{formattedPath}</span>
               ) : (
-                <Link to={href} className="hover:text-foreground transition-colors">
+                <Link to={href} className="hover:text-foreground transition-colors truncate max-w-[90px] sm:max-w-none">
                   {formattedPath}
                 </Link>
               )}
@@ -77,19 +78,31 @@ export function TopBar({ pathname }: TopBarProps) {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card/75 backdrop-blur-md px-6 z-30 transition-colors">
-      <div className="flex items-center">
+    <header className="flex h-14 items-center justify-between border-b border-border bg-card/75 backdrop-blur-md px-4 sm:px-6 z-30 transition-colors">
+      <div className="flex items-center min-w-0">
+        {/* Mobile Hamburger Menu Toggle */}
+        {onToggleMobileNav && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleMobileNav}
+            className="md:hidden mr-2 -ml-1.5 h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         {generateBreadcrumbs()}
       </div>
 
-      <div className="flex items-center gap-2 relative">
+      <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
         {/* Simple & Clean Dark / Light Mode Toggle */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           aria-label="Toggle theme"
-          className="relative rounded-lg hover:bg-muted"
+          className="relative rounded-lg hover:bg-muted h-8 w-8 sm:h-9 sm:w-9"
         >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all text-amber-500 dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all text-indigo-400 dark:rotate-0 dark:scale-100" />
@@ -99,7 +112,7 @@ export function TopBar({ pathname }: TopBarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-lg hover:bg-muted"
+          className="relative rounded-lg hover:bg-muted h-8 w-8 sm:h-9 sm:w-9"
           onClick={handleBellClick}
           id="btn-notifications"
           aria-label="Notifications"
@@ -119,7 +132,7 @@ export function TopBar({ pathname }: TopBarProps) {
               className="fixed inset-0 z-40"
               onClick={() => setShowNotifications(false)}
             />
-            <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-border bg-popover shadow-xl">
+            <div className="absolute right-0 top-11 z-50 w-72 sm:w-80 rounded-xl border border-border bg-popover shadow-xl">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-sm">Notifications</h3>

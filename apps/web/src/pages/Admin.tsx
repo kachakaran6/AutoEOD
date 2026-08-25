@@ -346,12 +346,12 @@ export function AdminPage() {
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border flex-wrap">
+        <div className="flex items-center gap-1.5 bg-muted/60 p-1.5 rounded-xl border border-border overflow-x-auto max-w-full no-scrollbar shrink-0">
           <Button
             variant={activeTab === 'config' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('config')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <Sliders className="w-3.5 h-3.5" /> Config
           </Button>
@@ -359,7 +359,7 @@ export function AdminPage() {
             variant={activeTab === 'models' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('models')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <Bot className="w-3.5 h-3.5" /> AI & Models
           </Button>
@@ -367,7 +367,7 @@ export function AdminPage() {
             variant={activeTab === 'users' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('users')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <Users className="w-3.5 h-3.5" /> Users
           </Button>
@@ -375,7 +375,7 @@ export function AdminPage() {
             variant={activeTab === 'health' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('health')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <Server className="w-3.5 h-3.5" /> Health
           </Button>
@@ -383,7 +383,7 @@ export function AdminPage() {
             variant={activeTab === 'analytics' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('analytics')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <BarChart3 className="w-3.5 h-3.5" /> Analytics
           </Button>
@@ -391,7 +391,7 @@ export function AdminPage() {
             variant={activeTab === 'templates' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('templates')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <Mail className="w-3.5 h-3.5" /> Templates
           </Button>
@@ -399,7 +399,7 @@ export function AdminPage() {
             variant={activeTab === 'audit' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('audit')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 shrink-0 rounded-lg"
           >
             <ScrollText className="w-3.5 h-3.5" /> Audit Logs
           </Button>

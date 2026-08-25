@@ -16,6 +16,7 @@ import {
   Mail,
   ScrollText,
   Bot,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -40,23 +41,53 @@ const adminNavItems = [
   { tab: 'audit', label: 'Audit Logs', icon: ScrollText },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void
+  className?: string
+}
+
+export function Sidebar({ onClose, className }: SidebarProps) {
   const { user, logout } = useAuth()
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
   const currentTab = searchParams.get('tab') || 'config'
 
+  const handleNavClick = () => {
+    if (onClose) {
+      onClose()
+    }
+  }
+
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-border bg-card/80 backdrop-blur-md overflow-y-auto">
-      {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 px-5 border-b border-border shrink-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/30 shadow-sm shadow-primary/10">
-          <Zap className="h-4 w-4" />
+    <aside
+      className={cn(
+        'flex h-full w-64 flex-col border-r border-border bg-card/95 backdrop-blur-md overflow-y-auto z-40',
+        className
+      )}
+    >
+      {/* Logo & Mobile Close */}
+      <div className="flex h-14 items-center justify-between px-4 sm:px-5 border-b border-border shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/30 shadow-sm shadow-primary/10">
+            <Zap className="h-4 w-4" />
+          </div>
+          <div>
+            <span className="font-bold text-sm tracking-tight text-foreground">AutoEOD</span>
+            <p className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">AI Report Engine</p>
+          </div>
         </div>
-        <div>
-          <span className="font-bold text-sm tracking-tight text-foreground">AutoEOD</span>
-          <p className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">AI Report Engine</p>
-        </div>
+
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="md:hidden h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label="Close sidebar"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Main Navigation */}
@@ -67,6 +98,7 @@ export function Sidebar() {
               key={to}
               to={to}
               end={end}
+              onClick={handleNavClick}
               id={`nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
               className={({ isActive }) =>
                 cn(
@@ -97,6 +129,7 @@ export function Sidebar() {
                 <NavLink
                   key={tab}
                   to={`/admin?tab=${tab}`}
+                  onClick={handleNavClick}
                   id={`nav-admin-${tab}`}
                   className={cn(
                     'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150',
@@ -129,7 +162,10 @@ export function Sidebar() {
           variant="ghost"
           size="sm"
           className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded-xl"
-          onClick={logout}
+          onClick={() => {
+            handleNavClick()
+            logout()
+          }}
           id="btn-logout"
         >
           <LogOut className="h-3.5 w-3.5" />

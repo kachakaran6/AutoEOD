@@ -97,22 +97,24 @@ export function IntegrationsPage() {
           Active Integrations
         </h3>
         <Card>
-          <CardHeader className="flex flex-row items-center gap-4 pb-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-900 border border-border ring-1 ring-white/5 shrink-0">
-              <Github className="h-6 w-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">GitHub</CardTitle>
-              <CardDescription>Track commits, pull requests, reviews, and issues</CardDescription>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pb-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gray-900 border border-border ring-1 ring-white/5 shrink-0">
+                <Github className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base">GitHub</CardTitle>
+                <CardDescription className="text-xs">Track commits, pull requests, reviews, and issues</CardDescription>
+              </div>
             </div>
             {isLoading ? (
               <Skeleton className="h-6 w-20" />
             ) : github?.connected ? (
-              <Badge variant="success" className="gap-1">
+              <Badge variant="success" className="gap-1 self-start sm:self-auto">
                 <CheckCircle2 className="h-3 w-3" /> Connected
               </Badge>
             ) : (
-              <Badge variant="outline">Not connected</Badge>
+              <Badge variant="outline" className="self-start sm:self-auto">Not connected</Badge>
             )}
           </CardHeader>
           <CardContent>
@@ -120,10 +122,10 @@ export function IntegrationsPage() {
               <Skeleton className="h-16 w-full" />
             ) : github?.connected ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium">@{github.username}</p>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span>
                         {github.lastSyncedAt
                           ? `Last synced ${formatDistanceToNow(new Date(github.lastSyncedAt))} ago`
@@ -134,13 +136,13 @@ export function IntegrationsPage() {
                     </div>
                   </div>
                   {github.needsReconnect && (
-                    <Badge variant="warning" className="gap-1">
+                    <Badge variant="warning" className="gap-1 self-start sm:self-auto">
                       <AlertTriangle className="h-3 w-3" />
                       Needs reconnect
                     </Badge>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {github.needsReconnect && (
                     <Button
                       size="sm"
