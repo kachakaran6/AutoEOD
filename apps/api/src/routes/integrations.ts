@@ -9,6 +9,7 @@ import { encrypt, decrypt } from '../lib/crypto';
 import { logger } from '../lib/logger';
 import { Queue } from 'bullmq';
 import { redisConnection } from '../lib/redis';
+import { recordAuditLog } from '../lib/audit';
 
 export const integrationsRouter = Router();
 
@@ -146,6 +147,14 @@ integrationsRouter.get('/github/callback', async (req: Request, res: Response): 
 
     logger.info({ userId, githubUsername: githubUser.login }, 'GitHub connected');
 
+    await recordAuditLog({
+      action: 'GITHUB_CONNECTED',
+      userId,
+      level: 'info',
+      details: { username: githubUser.login },
+      ipAddress: req.ip,
+    });
+
     // Trigger immediate sync
     await githubSyncQueue.add('sync-single', { userId }, { jobId: `sync-single-${userId}-${Date.now()}` });
 
@@ -160,6 +169,14 @@ integrationsRouter.get('/github/callback', async (req: Request, res: Response): 
 integrationsRouter.delete('/github', requireAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
   await prisma.githubIntegration.deleteMany({ where: { userId } });
+  
+  await recordAuditLog({
+    action: 'GITHUB_DISCONNECTED',
+    userId,
+    level: 'info',
+    ipAddress: req.ip,
+  });
+
   logger.info({ userId }, 'GitHub disconnected');
   res.json({ message: 'GitHub disconnected' });
 });
@@ -176,6 +193,15 @@ integrationsRouter.post('/github/sync', requireAuth, async (req: Request, res: R
 
   // Trigger immediate sync
   await githubSyncQueue.add('sync-single', { userId }, { jobId: `sync-single-${userId}-${Date.now()}` });
+  
+  await recordAuditLog({
+    action: 'GITHUB_SYNC_TRIGGERED',
+    userId,
+    level: 'info',
+    details: { username: integration.githubUsername },
+    ipAddress: req.ip,
+  });
+
   logger.info({ userId }, 'Manual GitHub sync triggered');
   res.json({ message: 'Sync queued successfully' });
 });

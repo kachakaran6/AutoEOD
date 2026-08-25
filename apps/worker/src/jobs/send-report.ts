@@ -2,6 +2,7 @@
 import { prisma } from '@autoeod/db';
 import { logger } from '../lib/logger';
 import { sendReportEmail } from '../lib/email';
+import { recordAuditLog } from '../lib/audit';
 
 export interface SendReportJobData {
   userId: string;
@@ -86,11 +87,33 @@ export async function sendReportJob(data: SendReportJobData): Promise<void> {
       },
     });
 
+    await recordAuditLog({
+      action: 'EMAIL_REPORT_SENT',
+      userId,
+      level: 'info',
+      details: {
+        reportDate: report.reportDate,
+        recipient: settings.managerEmail,
+        template: settings.reportTemplate,
+      },
+    });
+
     logger.info({ userId, reportId }, 'Successfully auto-sent report');
   } catch (err) {
     logger.error({ err, userId, reportId }, 'Failed to auto-send report');
     
     const errorMessage = err instanceof Error ? err.message : 'Failed to auto-send email';
+
+    await recordAuditLog({
+      action: 'EMAIL_REPORT_FAILED',
+      userId,
+      level: 'error',
+      details: {
+        reportDate: report.reportDate,
+        recipient: settings.managerEmail,
+        error: errorMessage,
+      },
+    });
 
     await prisma.report.update({
       where: { id: reportId },

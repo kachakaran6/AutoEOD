@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../middleware/auth';
+import { recordAuditLog } from '../lib/audit';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
@@ -246,6 +247,16 @@ Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed
         data: { aiSummary: summary }
       });
     }
+
+    await recordAuditLog({
+      action: 'AI_TIMELINE_SUMMARIZED',
+      userId,
+      level: 'info',
+      details: {
+        model: process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free',
+        sessionCount: Object.keys(summariesMap).length,
+      }
+    });
 
     res.json({ success: true, count: Object.keys(summariesMap).length });
   } catch (error) {

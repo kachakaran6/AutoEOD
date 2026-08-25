@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, Plus, Calendar as CalendarIcon, Info } from 'lucide-react';
+import { Trash2, Plus, Calendar as CalendarIcon, Info, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -83,21 +83,31 @@ export function WorkingSchedule({ workingDays = [1,2,3,4,5], onChange }: { worki
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-base">Working Days</CardTitle>
-          <CardDescription>Select the days you typically work. Reports will be skipped on unselected days.</CardDescription>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            Working Days Schedule
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Select the days you typically work. Automated EOD reports will only generate on active days.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {DAYS.map(day => {
+          <div className="flex flex-wrap gap-2.5">
+            {DAYS.map((day) => {
               const isActive = workingDays.includes(day.id);
               return (
                 <button
                   key={day.id}
                   onClick={() => toggleDay(day.id)}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 border ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/25 scale-[1.02]'
+                      : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                  }`}
                 >
+                  {isActive && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                   {day.label}
                 </button>
               );

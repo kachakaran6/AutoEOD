@@ -455,14 +455,38 @@ adminRouter.delete('/templates/:id', async (req: Request, res: Response): Promis
 });
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────
-adminRouter.get('/audit-logs', async (_req: Request, res: Response): Promise<void> => {
+adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void> => {
   try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 200, 500);
+    const level = req.query.level as string | undefined;
+    const category = req.query.category as string | undefined;
+
+    let whereClause: any = {};
+    if (level && level !== 'all') {
+      whereClause.level = level;
+    }
+
+    if (category && category !== 'all') {
+      if (category === 'ai') {
+        whereClause.action = { startsWith: 'AI_' };
+      } else if (category === 'auth') {
+        whereClause.action = { startsWith: 'USER_' };
+      } else if (category === 'integrations') {
+        whereClause.action = { startsWith: 'GITHUB_' };
+      } else if (category === 'email') {
+        whereClause.action = { startsWith: 'EMAIL_' };
+      } else if (category === 'system') {
+        whereClause.action = { in: ['SYSTEM_STARTUP', 'DATABASE_MIGRATION_DEPLOYED', 'REDIS_UPSTASH_CONNECTED', 'ADMIN_DASHBOARD_INITIALIZED', 'SYSTEM_CONFIG_UPDATED', 'USER_ROLE_UPDATED', 'USER_DELETED'] };
+      }
+    }
+
     let logs = await prisma.auditLog.findMany({
-      take: 100,
+      where: whereClause,
+      take: limit,
       orderBy: { createdAt: 'desc' },
     });
 
-    if (logs.length === 0) {
+    if (logs.length === 0 && (!level || level === 'all') && (!category || category === 'all')) {
       const initialEvents = [
         {
           action: 'ADMIN_DASHBOARD_INITIALIZED',
@@ -470,14 +494,14 @@ adminRouter.get('/audit-logs', async (_req: Request, res: Response): Promise<voi
           details: JSON.stringify({ rbacRole: 'ADMIN', status: 'ACTIVE' }),
         },
         {
-          action: 'REDIS_UPSTASH_CONNECTED',
+          action: 'AI_MODEL_INITIALIZED',
           level: 'info',
-          details: JSON.stringify({ provider: 'Upstash Redis TLS', monthlyCommandLimit: 500000 }),
+          details: JSON.stringify({ provider: 'OpenRouter API', primaryModel: process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free' }),
         },
         {
-          action: 'DATABASE_MIGRATION_DEPLOYED',
+          action: 'REDIS_CONNECTED',
           level: 'info',
-          details: JSON.stringify({ database: 'Neon PostgreSQL', schemaVersion: '2026.08.11' }),
+          details: JSON.stringify({ status: 'ACTIVE', connection: 'Redis TLS/TCP' }),
         },
         {
           action: 'SYSTEM_STARTUP',
@@ -491,14 +515,115 @@ adminRouter.get('/audit-logs', async (_req: Request, res: Response): Promise<voi
       }
 
       logs = await prisma.auditLog.findMany({
-        take: 100,
+        take: limit,
         orderBy: { createdAt: 'desc' },
       });
     }
 
-    res.json(logs);
+    // Fetch user names/emails for userIds in logs
+    const userIds = [...new Set(logs.map((l) => l.userId).filter(Boolean))] as string[];
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const enrichedLogs = logs.map((l) => ({
+      ...l,
+      user: l.userId ? userMap.get(l.userId) || { id: l.userId, name: 'User', email: l.userId } : null,
+    }));
+
+    res.json(enrichedLogs);
   } catch (err) {
     logger.error({ err }, 'Failed to fetch audit logs');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Models Usage & AI Diagnostics ─────────────────────────────────────────────
+adminRouter.get('/models-usage', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const primaryModel = process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free';
+    const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'openrouter/free';
+    const baseURL = process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1';
+
+    // Model breakdown from reports table
+    const reportsWithModel = await prisma.report.groupBy({
+      by: ['aiModel'],
+      _count: { _all: true },
+    });
+
+    const totalReports = await prisma.report.count();
+    const successfulReports = await prisma.report.count({
+      where: { status: { not: 'failed' } },
+    });
+    const failedReports = await prisma.report.count({
+      where: { status: 'failed' },
+    });
+    const totalTimelineSummaries = await prisma.timelineSession.count({
+      where: { aiSummary: { not: null } },
+    });
+
+    const breakdown = reportsWithModel.map((r) => ({
+      model: r.aiModel || primaryModel,
+      count: r._count._all,
+      percentage: totalReports > 0 ? Math.round((r._count._all / totalReports) * 100) : 0,
+    }));
+
+    if (breakdown.length === 0) {
+      breakdown.push({
+        model: primaryModel,
+        count: totalReports,
+        percentage: 100,
+      });
+    }
+
+    // Recent AI specific audit logs
+    const recentAiLogs = await prisma.auditLog.findMany({
+      where: { action: { startsWith: 'AI_' } },
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const userIds = [...new Set(recentAiLogs.map((l) => l.userId).filter(Boolean))] as string[];
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const enrichedAiLogs = recentAiLogs.map((l) => ({
+      ...l,
+      user: l.userId ? userMap.get(l.userId) || { id: l.userId, name: 'User', email: l.userId } : null,
+    }));
+
+    const successRate = totalReports > 0 ? Number(((successfulReports / totalReports) * 100).toFixed(1)) : 100;
+
+    res.json({
+      config: {
+        primaryModel,
+        fallbackModel,
+        baseURL,
+        providerName: baseURL.includes('openrouter.ai') ? 'OpenRouter API' : baseURL.includes('groq.com') ? 'Groq LPU' : 'OpenAI API',
+      },
+      metrics: {
+        totalReports,
+        successfulReports,
+        failedReports,
+        successRate,
+        totalTimelineSummaries,
+        estimatedTokensUsed: (totalReports * 850) + (totalTimelineSummaries * 220),
+      },
+      modelBreakdown: breakdown,
+      recentAiLogs: enrichedAiLogs,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to fetch model usage');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

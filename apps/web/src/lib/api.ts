@@ -461,11 +461,35 @@ export interface EmailTemplate {
 export interface AuditLogItem {
   id: string;
   userId?: string | null;
+  user?: { id: string; name: string; email: string } | null;
   action: string;
   level: string;
   details?: string | null;
   ipAddress?: string | null;
   createdAt: string;
+}
+
+export interface AdminModelsUsage {
+  config: {
+    primaryModel: string;
+    fallbackModel: string;
+    baseURL: string;
+    providerName: string;
+  };
+  metrics: {
+    totalReports: number;
+    successfulReports: number;
+    failedReports: number;
+    successRate: number;
+    totalTimelineSummaries: number;
+    estimatedTokensUsed: number;
+  };
+  modelBreakdown: Array<{
+    model: string;
+    count: number;
+    percentage: number;
+  }>;
+  recentAiLogs: AuditLogItem[];
 }
 
 export interface AdminAnalytics {
@@ -513,7 +537,15 @@ export const admin = {
     apiRequest<{ success: boolean }>(`/admin/templates/${id}`, {
       method: 'DELETE',
     }),
-  getAuditLogs: () => apiRequest<AuditLogItem[]>('/admin/audit-logs'),
+  getAuditLogs: (params?: { level?: string; category?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.level && params.level !== 'all') qs.set('level', params.level);
+    if (params?.category && params.category !== 'all') qs.set('category', params.category);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<AuditLogItem[]>(`/admin/audit-logs${query}`);
+  },
+  getModelsUsage: () => apiRequest<AdminModelsUsage>('/admin/models-usage'),
   getAnalytics: () => apiRequest<AdminAnalytics>('/admin/analytics'),
   releaseExtension: (data: { githubToken?: string; repo?: string; tag?: string; apiBaseUrl?: string }) =>
     apiRequest<{

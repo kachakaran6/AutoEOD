@@ -10,6 +10,7 @@ import { requireAuth } from '../middleware/auth';
 import { logger } from '../lib/logger';
 import { redisConnection } from '../lib/redis';
 import { sendReportEmail } from '../lib/email';
+import { recordAuditLog } from '../lib/audit';
 
 export const reportsRouter = Router();
 
@@ -154,6 +155,19 @@ reportsRouter.post('/:id/send', requireAuth, async (req: Request, res: Response)
     });
 
     logger.info({ userId, reportId: id, sentTo: settings.managerEmail }, 'Report sent');
+    
+    await recordAuditLog({
+      action: 'EMAIL_REPORT_SENT_MANUAL',
+      userId,
+      level: 'info',
+      details: {
+        reportId: id,
+        reportDate: report.reportDate,
+        recipient: settings.managerEmail,
+        template: settings.reportTemplate,
+      },
+    });
+
     res.json(updated);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Email sending failed';
@@ -161,6 +175,18 @@ reportsRouter.post('/:id/send', requireAuth, async (req: Request, res: Response)
       where: { id },
       data: { status: 'failed', errorMessage },
     });
+    
+    await recordAuditLog({
+      action: 'EMAIL_REPORT_SEND_FAILED',
+      userId,
+      level: 'error',
+      details: {
+        reportId: id,
+        recipient: settings.managerEmail,
+        error: errorMessage,
+      },
+    });
+
     logger.error({ err, userId, reportId: id }, 'Report send failed');
     res.status(500).json({ error: 'Failed to send report email', details: errorMessage });
   }

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { DateTime } from 'luxon';
 import { prisma } from '@autoeod/db';
 import { logger } from '../lib/logger';
+import { recordAuditLog } from '../lib/audit';
 import { sendReminderEmail } from '../lib/email';
 import { Queue } from 'bullmq';
 import { redisConnection } from '../lib/redis';
@@ -280,18 +281,44 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
 
   // Try the preferred model; if it fails validation, retry with error-correction prompt
   let reportOutput: ReportOutput;
-  let usedModel = PREFERRED_MODEL;
+  const preferredModel = process.env.OPENAI_MODEL || PREFERRED_MODEL;
+  let usedModel = preferredModel;
+  const startTime = Date.now();
 
   try {
-    reportOutput = await callOpenAI(prompt, PREFERRED_MODEL);
+    reportOutput = await callOpenAI(prompt, preferredModel);
   } catch (firstErr) {
     logger.warn({ firstErr, userId, reportDate }, 'First OpenAI attempt failed, retrying with fallback model');
+    await recordAuditLog({
+      action: 'AI_MODEL_FALLBACK_TRIGGERED',
+      userId,
+      level: 'warn',
+      details: {
+        primaryModel: preferredModel,
+        fallbackModel: process.env.OPENAI_FALLBACK_MODEL || 'openrouter/free',
+        error: firstErr instanceof Error ? firstErr.message : String(firstErr),
+      },
+    });
+
     try {
       // Try fallback model if provided, otherwise retry the same model
-      usedModel = process.env.OPENAI_FALLBACK_MODEL || PREFERRED_MODEL;
+      usedModel = process.env.OPENAI_FALLBACK_MODEL || preferredModel;
       reportOutput = await callOpenAI(prompt, usedModel);
     } catch (secondErr) {
       logger.error({ secondErr, userId, reportDate }, 'Both OpenAI attempts failed, marking report as failed');
+      
+      await recordAuditLog({
+        action: 'AI_REPORT_FAILED',
+        userId,
+        level: 'error',
+        details: {
+          reportDate,
+          model: usedModel,
+          error: secondErr instanceof Error ? secondErr.message : 'OpenAI generation failed',
+          eventsCount: events.length,
+        },
+      });
+
       await prisma.report.upsert({
         where: { userId_reportDate: { userId, reportDate } },
         create: {
@@ -322,6 +349,8 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     }
   }
 
+  const durationMs = Date.now() - startTime;
+
   // Upsert the report
   const report = await prisma.report.upsert({
     where: { userId_reportDate: { userId, reportDate } },
@@ -349,6 +378,21 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
       aiModel: usedModel,
       generatedAt: new Date(),
       errorMessage: null,
+    },
+  });
+
+  // Record successful audit log
+  await recordAuditLog({
+    action: 'AI_REPORT_GENERATED',
+    userId,
+    level: 'info',
+    details: {
+      reportDate,
+      model: usedModel,
+      durationMs,
+      completedCount: reportOutput.completedItems.length,
+      inProgressCount: reportOutput.inProgressItems.length,
+      eventsCount: events.length,
     },
   });
 

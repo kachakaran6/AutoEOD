@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { prisma } from '@autoeod/db';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
+import { recordAuditLog } from '../lib/audit';
 
 export const authRouter = Router();
 
@@ -59,6 +60,14 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
 
   logger.info({ userId: user.id }, 'New user signed up');
 
+  await recordAuditLog({
+    action: 'USER_REGISTERED',
+    userId: user.id,
+    level: 'info',
+    details: { name: user.name, email: user.email },
+    ipAddress: req.ip,
+  });
+
   const accessToken = signAccessToken(user.id);
   const refreshToken = signRefreshToken(user.id);
   res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
@@ -76,17 +85,38 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
+    await recordAuditLog({
+      action: 'USER_LOGIN_FAILED',
+      level: 'warn',
+      details: { email, reason: 'user_not_found' },
+      ipAddress: req.ip,
+    });
     res.status(401).json({ error: 'Invalid email or password' });
     return;
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    await recordAuditLog({
+      action: 'USER_LOGIN_FAILED',
+      userId: user.id,
+      level: 'warn',
+      details: { email, reason: 'invalid_password' },
+      ipAddress: req.ip,
+    });
     res.status(401).json({ error: 'Invalid email or password' });
     return;
   }
 
   logger.info({ userId: user.id }, 'User logged in');
+
+  await recordAuditLog({
+    action: 'USER_LOGIN_SUCCESS',
+    userId: user.id,
+    level: 'info',
+    details: { email: user.email, role: user.role },
+    ipAddress: req.ip,
+  });
 
   const accessToken = signAccessToken(user.id);
   const refreshToken = signRefreshToken(user.id);

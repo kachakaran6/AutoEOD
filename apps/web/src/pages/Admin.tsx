@@ -8,6 +8,7 @@ import {
   EmailTemplate,
   AuditLogItem,
   AdminAnalytics,
+  AdminModelsUsage,
 } from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,19 @@ import {
   Search,
   Package,
   Download,
+  Bot,
+  Sparkles,
+  Cpu,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Filter,
+  Zap,
+  Key,
+  GitBranch,
+  AlertCircle,
+  Clock,
+  Terminal,
 } from 'lucide-react';
 
 export function AdminPage() {
@@ -65,6 +79,9 @@ export function AdminPage() {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
+  const [modelsUsage, setModelsUsage] = useState<AdminModelsUsage | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -80,6 +97,12 @@ export function AdminPage() {
 
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [auditLevelFilter, setAuditLevelFilter] = useState<string>('all');
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>('all');
+  const [auditSearch, setAuditSearch] = useState<string>('');
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [autoRefreshLogs, setAutoRefreshLogs] = useState<boolean>(false);
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
 
   // Extension Release State
   const [githubToken, setGithubToken] = useState('');
@@ -124,6 +147,18 @@ export function AdminPage() {
     }
   };
 
+  const loadModelsUsage = async () => {
+    setLoadingModels(true);
+    try {
+      const data = await admin.getModelsUsage();
+      setModelsUsage(data);
+    } catch (err: any) {
+      toast.error('Failed to load model usage: ' + (err.message || 'Error'));
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
   const loadAnalytics = async () => {
     setLoadingAnalytics(true);
     try {
@@ -151,7 +186,10 @@ export function AdminPage() {
   const loadAuditLogs = async () => {
     setLoadingAuditLogs(true);
     try {
-      const data = await admin.getAuditLogs();
+      const data = await admin.getAuditLogs({
+        level: auditLevelFilter,
+        category: auditCategoryFilter,
+      });
       setAuditLogs(data);
     } catch (err: any) {
       toast.error('Failed to load audit logs: ' + (err.message || 'Error'));
@@ -163,11 +201,22 @@ export function AdminPage() {
   useEffect(() => {
     if (activeTab === 'config') loadConfig();
     if (activeTab === 'users') loadUsers();
+    if (activeTab === 'models') loadModelsUsage();
     if (activeTab === 'health') loadHealth();
     if (activeTab === 'analytics') loadAnalytics();
     if (activeTab === 'templates') loadTemplates();
     if (activeTab === 'audit') loadAuditLogs();
-  }, [activeTab]);
+  }, [activeTab, auditLevelFilter, auditCategoryFilter]);
+
+  // Auto-refresh interval for audit logs and model diagnostics
+  useEffect(() => {
+    if (!autoRefreshLogs) return;
+    const interval = setInterval(() => {
+      if (activeTab === 'audit') loadAuditLogs();
+      if (activeTab === 'models') loadModelsUsage();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [autoRefreshLogs, activeTab, auditLevelFilter, auditCategoryFilter]);
 
   // Save Config
   const handleSaveConfig = async (e: React.FormEvent) => {
@@ -297,7 +346,7 @@ export function AdminPage() {
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border flex-wrap">
           <Button
             variant={activeTab === 'config' ? 'default' : 'ghost'}
             size="sm"
@@ -305,6 +354,14 @@ export function AdminPage() {
             className="text-xs gap-1.5"
           >
             <Sliders className="w-3.5 h-3.5" /> Config
+          </Button>
+          <Button
+            variant={activeTab === 'models' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('models')}
+            className="text-xs gap-1.5"
+          >
+            <Bot className="w-3.5 h-3.5" /> AI & Models
           </Button>
           <Button
             variant={activeTab === 'users' ? 'default' : 'ghost'}
@@ -1013,70 +1070,557 @@ export function AdminPage() {
         </Card>
       )}
 
+      {/* ── TAB: AI & MODELS USAGE ───────────────────────────────────────────── */}
+      {activeTab === 'models' && (
+        <div className="space-y-6">
+          {/* Top Engine Banner */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-background to-blue-950/30 border border-purple-500/20 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 shadow-inner">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-foreground">AI Intelligence & Inference Engine</h3>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Online & Ready
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  LLM runtime provider, model routing orchestration, and live generation analytics.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadModelsUsage}
+                disabled={loadingModels}
+                className="text-xs gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingModels ? 'animate-spin' : ''}`} /> Refresh Diagnostics
+              </Button>
+            </div>
+          </div>
+
+          {/* 4 Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between text-muted-foreground text-xs">
+                  <span>Active Primary Model</span>
+                  <Cpu className="w-4 h-4 text-purple-400" />
+                </div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <span className="text-sm font-semibold truncate font-mono text-purple-300">
+                    {modelsUsage?.config.primaryModel || 'poolside/laguna-s-2.1:free'}
+                  </span>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
+                  <span>Provider: {modelsUsage?.config.providerName || 'OpenRouter API'}</span>
+                  <Badge variant="secondary" className="text-[9px] py-0">1M Context</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between text-muted-foreground text-xs">
+                  <span>Total AI Reports</span>
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-foreground">
+                    {modelsUsage?.metrics.totalReports ?? 0}
+                  </span>
+                  <span className="text-xs text-muted-foreground">reports generated</span>
+                </div>
+                <div className="mt-2 text-[11px] text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{modelsUsage?.metrics.successfulReports ?? 0} successful</span>
+                  {(modelsUsage?.metrics.failedReports ?? 0) > 0 && (
+                    <span className="text-rose-400">· {modelsUsage?.metrics.failedReports} failed</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between text-muted-foreground text-xs">
+                  <span>Generation Success Rate</span>
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-emerald-400">
+                    {modelsUsage?.metrics.successRate ?? 100}%
+                  </span>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
+                  <span>Fallback: {modelsUsage?.config.fallbackModel || 'openrouter/free'}</span>
+                  <Badge variant="outline" className="text-[9px] py-0 text-emerald-400 border-emerald-500/20">Optimal</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between text-muted-foreground text-xs">
+                  <span>Timeline AI Analysis</span>
+                  <GitBranch className="w-4 h-4 text-blue-400" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-foreground">
+                    {modelsUsage?.metrics.totalTimelineSummaries ?? 0}
+                  </span>
+                  <span className="text-xs text-muted-foreground">sessions</span>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  ~{(modelsUsage?.metrics.estimatedTokensUsed ?? 0).toLocaleString()} estimated tokens processed
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Model Workload Share & Breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="border-border bg-card lg:col-span-1">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-primary" /> Model Workload Distribution
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Volume of requests dispatched per AI model.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {modelsUsage?.modelBreakdown && modelsUsage.modelBreakdown.length > 0 ? (
+                  modelsUsage.modelBreakdown.map((item, idx) => (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono font-medium text-foreground truncate max-w-[180px]">
+                          {item.model}
+                        </span>
+                        <span className="text-muted-foreground font-mono">
+                          {item.count} ({item.percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted/60 rounded-full h-2 overflow-hidden border border-border/40">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(item.percentage, 4)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    No model breakdown data available yet.
+                  </div>
+                )}
+
+                <div className="p-3 bg-muted/30 border border-border rounded-lg text-xs space-y-1 mt-4">
+                  <p className="font-medium text-foreground flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Active Architecture
+                  </p>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    Primary inference queries are handled with streaming JSON validation and automated schema repair. If an upstream provider rate limits, requests automatically failover to <code className="bg-muted px-1 py-0.5 rounded text-foreground">{modelsUsage?.config.fallbackModel || 'openrouter/free'}</code>.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent AI Event Stream */}
+            <Card className="border-border bg-card lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-3">
+                <div>
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-primary" /> Live AI Generation Stream
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Real-time execution log of report synthesis and timeline classifications.
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-[10px]">Last 20 Runs</Badge>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {loadingModels ? (
+                  <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
+                    Loading AI generation stream...
+                  </div>
+                ) : !modelsUsage?.recentAiLogs || modelsUsage.recentAiLogs.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground text-xs">
+                    No AI generation events logged yet. Trigger an EOD report to see live diagnostics.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px]">
+                        <tr>
+                          <th className="py-2.5 px-3">Timestamp</th>
+                          <th className="py-2.5 px-3">Event</th>
+                          <th className="py-2.5 px-3">User</th>
+                          <th className="py-2.5 px-3">Model / Metrics</th>
+                          <th className="py-2.5 px-3 text-right">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60 text-[11px]">
+                        {modelsUsage.recentAiLogs.map((log) => {
+                          let detailsObj: any = null;
+                          try {
+                            if (log.details) detailsObj = JSON.parse(log.details);
+                          } catch {}
+
+                          return (
+                            <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
+                                {new Date(log.createdAt).toLocaleTimeString()}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                                  log.action === 'AI_REPORT_FAILED'
+                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                    : log.action === 'AI_MODEL_FALLBACK_TRIGGERED'
+                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                }`}>
+                                  <Bot className="w-3 h-3" />
+                                  {log.action.replace('AI_', '')}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-foreground font-medium">
+                                {log.user?.name || log.user?.email || log.userId || 'System'}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-muted-foreground text-[10px]">
+                                {detailsObj?.model ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-purple-300 font-semibold">{detailsObj.model}</span>
+                                    {detailsObj.durationMs && (
+                                      <span className="text-muted-foreground">({detailsObj.durationMs}ms)</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  log.details || '-'
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                {detailsObj ? (
+                                  <Badge variant="outline" className="text-[9px] font-mono cursor-pointer" onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(detailsObj, null, 2));
+                                    toast.success('Metadata copied to clipboard');
+                                  }}>
+                                    <Copy className="w-2.5 h-2.5 mr-1" /> Copy JSON
+                                  </Badge>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* ── TAB 6: PINO & DATABASE AUDIT LOGS ─────────────────────────────────── */}
       {activeTab === 'audit' && (
         <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border pb-4 gap-4">
             <div>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <ScrollText className="w-5 h-5 text-primary" /> System Audit Logs (Pino & Database)
               </CardTitle>
               <CardDescription className="text-xs">
-                Real-time security and administrative audit event trail.
+                Real-time security, AI inference, and administrative audit event trail.
               </CardDescription>
             </div>
-            <Button variant="ghost" size="icon" onClick={loadAuditLogs} disabled={loadingAuditLogs}>
-              <RefreshCw className={`w-4 h-4 ${loadingAuditLogs ? 'animate-spin' : ''}`} />
-            </Button>
+
+            <div className="flex items-center gap-3">
+              {/* Auto-Refresh Toggle */}
+              <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border text-xs">
+                <span className={`w-2 h-2 rounded-full ${autoRefreshLogs ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground'}`} />
+                <span className="text-muted-foreground text-[11px]">Live Stream (8s)</span>
+                <Switch
+                  checked={autoRefreshLogs}
+                  onCheckedChange={setAutoRefreshLogs}
+                  aria-label="Toggle auto-refresh"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadAuditLogs}
+                disabled={loadingAuditLogs}
+                className="gap-1.5 text-xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingAuditLogs ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
 
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 space-y-4">
+            {/* Filters Toolbar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-muted/20 p-3 rounded-xl border border-border/60">
+              {/* Category Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                {[
+                  { id: 'all', label: 'All Events' },
+                  { id: 'ai', label: '🤖 AI & Models' },
+                  { id: 'auth', label: '🔐 Auth & Security' },
+                  { id: 'integrations', label: '🐙 Integrations' },
+                  { id: 'email', label: '📧 Email & Reports' },
+                  { id: 'system', label: '⚙️ System' },
+                ].map((cat) => (
+                  <Button
+                    key={cat.id}
+                    variant={auditCategoryFilter === cat.id ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setAuditCategoryFilter(cat.id)}
+                    className="text-xs h-7 px-2.5 rounded-lg whitespace-nowrap"
+                  >
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Level Selector & Search */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={auditLevelFilter}
+                  onChange={(e) => setAuditLevelFilter(e.target.value)}
+                  className="bg-muted border border-border rounded-lg text-xs px-2.5 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">All Levels</option>
+                  <option value="info">INFO</option>
+                  <option value="warn">WARN</option>
+                  <option value="error">ERROR</option>
+                </select>
+
+                <div className="relative w-48 sm:w-60">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search logs & details..."
+                    value={auditSearch}
+                    onChange={(e) => setAuditSearch(e.target.value)}
+                    className="pl-8 h-8 text-xs bg-muted/60"
+                  />
+                  {auditSearch && (
+                    <X
+                      className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground cursor-pointer"
+                      onClick={() => setAuditSearch('')}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Audit Log Table */}
             {loadingAuditLogs ? (
-              <div className="py-12 text-center text-muted-foreground text-sm animate-pulse">
-                Loading audit logs...
+              <div className="py-16 text-center text-muted-foreground text-sm animate-pulse flex flex-col items-center gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                Loading audit trail records...
               </div>
             ) : auditLogs.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-xs">
-                No audit logs found. System and administrative events will appear here automatically.
+              <div className="py-16 text-center text-muted-foreground text-xs space-y-1">
+                <ScrollText className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="font-medium text-foreground">No audit logs found</p>
+                <p>System, security, and AI events will appear here automatically.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-left text-xs text-foreground">
-                  <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border">
+                  <thead className="bg-muted/60 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px]">
                     <tr>
-                      <th className="py-3 px-4">Timestamp</th>
-                      <th className="py-3 px-4">Action</th>
-                      <th className="py-3 px-4">Level</th>
-                      <th className="py-3 px-4">User ID</th>
-                      <th className="py-3 px-4">Details</th>
+                      <th className="py-3 px-4 w-40">Timestamp</th>
+                      <th className="py-3 px-4">Action / Event</th>
+                      <th className="py-3 px-4 w-20">Level</th>
+                      <th className="py-3 px-4">User / Actor</th>
+                      <th className="py-3 px-4">Origin IP</th>
+                      <th className="py-3 px-4 text-right">Details</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60 font-mono text-[11px]">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2.5 px-4 text-muted-foreground">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-2.5 px-4 font-semibold text-foreground">{log.action}</td>
-                        <td className="py-2.5 px-4">
-                          <Badge
-                            variant={
-                              log.level === 'error'
-                                ? 'destructive'
-                                : log.level === 'warn'
-                                ? 'secondary'
-                                : 'outline'
-                            }
-                          >
-                            {log.level}
-                          </Badge>
-                        </td>
-                        <td className="py-2.5 px-4 text-muted-foreground">{log.userId || 'system'}</td>
-                        <td className="py-2.5 px-4 text-muted-foreground truncate max-w-xs">
-                          {log.details || '-'}
-                        </td>
-                      </tr>
-                    ))}
+                    {auditLogs
+                      .filter((log) => {
+                        if (!auditSearch.trim()) return true;
+                        const q = auditSearch.toLowerCase();
+                        return (
+                          log.action.toLowerCase().includes(q) ||
+                          (log.details && log.details.toLowerCase().includes(q)) ||
+                          (log.user?.name && log.user.name.toLowerCase().includes(q)) ||
+                          (log.user?.email && log.user.email.toLowerCase().includes(q)) ||
+                          (log.userId && log.userId.toLowerCase().includes(q)) ||
+                          (log.ipAddress && log.ipAddress.toLowerCase().includes(q))
+                        );
+                      })
+                      .map((log) => {
+                        const isExpanded = expandedLogId === log.id;
+                        let parsedDetails: any = null;
+                        if (log.details) {
+                          try {
+                            parsedDetails = JSON.parse(log.details);
+                          } catch {
+                            parsedDetails = log.details;
+                          }
+                        }
+
+                        const getActionBadge = (action: string) => {
+                          if (action.startsWith('AI_')) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20 font-semibold text-[10px]">
+                                <Bot className="w-3 h-3" />
+                                {action}
+                              </span>
+                            );
+                          }
+                          if (action.startsWith('USER_')) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold text-[10px]">
+                                <Key className="w-3 h-3" />
+                                {action}
+                              </span>
+                            );
+                          }
+                          if (action.startsWith('GITHUB_')) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold text-[10px]">
+                                <GitBranch className="w-3 h-3" />
+                                {action}
+                              </span>
+                            );
+                          }
+                          if (action.startsWith('EMAIL_')) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold text-[10px]">
+                                <Mail className="w-3 h-3" />
+                                {action}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground border border-border font-semibold text-[10px]">
+                              <Shield className="w-3 h-3 text-muted-foreground" />
+                              {action}
+                            </span>
+                          );
+                        };
+
+                        return (
+                          <React.Fragment key={log.id}>
+                            <tr
+                              className={`hover:bg-muted/40 transition-colors cursor-pointer ${
+                                isExpanded ? 'bg-muted/30' : ''
+                              }`}
+                              onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                            >
+                              <td className="py-2.5 px-4 text-muted-foreground whitespace-nowrap font-sans text-xs">
+                                {new Date(log.createdAt).toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-4">{getActionBadge(log.action)}</td>
+                              <td className="py-2.5 px-4">
+                                <Badge
+                                  variant={
+                                    log.level === 'error'
+                                      ? 'destructive'
+                                      : log.level === 'warn'
+                                      ? 'secondary'
+                                      : 'outline'
+                                  }
+                                  className="text-[10px] uppercase font-mono px-1.5 py-0"
+                                >
+                                  {log.level}
+                                </Badge>
+                              </td>
+                              <td className="py-2.5 px-4 font-sans text-xs">
+                                {log.user ? (
+                                  <div>
+                                    <p className="font-medium text-foreground">{log.user.name}</p>
+                                    <p className="text-[10px] text-muted-foreground font-mono">{log.user.email}</p>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">{log.userId || 'system'}</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 text-muted-foreground text-xs font-mono">
+                                {log.ipAddress || '-'}
+                              </td>
+                              <td className="py-2.5 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {parsedDetails && (
+                                    <span className="text-muted-foreground truncate max-w-[140px] text-[10px]">
+                                      {typeof parsedDetails === 'string'
+                                        ? parsedDetails
+                                        : JSON.stringify(parsedDetails)}
+                                    </span>
+                                  )}
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Expanded JSON details payload */}
+                            {isExpanded && (
+                              <tr className="bg-muted/20 border-b border-border">
+                                <td colSpan={6} className="p-4">
+                                  <div className="p-3 bg-black/50 rounded-xl border border-border font-mono text-xs space-y-2">
+                                    <div className="flex items-center justify-between text-muted-foreground border-b border-border/40 pb-2">
+                                      <span className="flex items-center gap-1.5 text-primary text-xs font-semibold font-sans">
+                                        <Terminal className="w-3.5 h-3.5" /> Event Payload Inspector
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 text-[10px] gap-1 bg-muted/40"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(
+                                            typeof parsedDetails === 'object'
+                                              ? JSON.stringify(parsedDetails, null, 2)
+                                              : log.details || ''
+                                          );
+                                          setCopiedLogId(log.id);
+                                          toast.success('JSON payload copied to clipboard');
+                                          setTimeout(() => setCopiedLogId(null), 2000);
+                                        }}
+                                      >
+                                        {copiedLogId === log.id ? (
+                                          <>
+                                            <Check className="w-3 h-3 text-emerald-400" /> Copied!
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="w-3 h-3" /> Copy JSON
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <pre className="text-emerald-400 text-xs overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                                      {typeof parsedDetails === 'object'
+                                        ? JSON.stringify(parsedDetails, null, 2)
+                                        : log.details || 'No additional metadata logged.'}
+                                    </pre>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
