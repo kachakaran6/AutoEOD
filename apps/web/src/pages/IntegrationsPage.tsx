@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { Github, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Lock } from 'lucide-react'
-import { getAccessToken } from '@/lib/api'
+import { getAccessToken, BASE_URL } from '@/lib/api'
 import { integrations, extensionTokens } from '@/lib/api'; import { MessageSquare, Copy } from 'lucide-react'; import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -81,8 +81,7 @@ export function IntegrationsPage() {
       return
     }
     // Pass the token as a query param since browser redirects can't set headers
-    const baseUrl = (import.meta as any).env.VITE_API_URL || '/api';
-    window.location.href = `${baseUrl}/integrations/github/connect?token=${encodeURIComponent(tok)}`
+    window.location.href = `${BASE_URL}/integrations/github/connect?token=${encodeURIComponent(tok)}`
   }
 
   const github = data?.github
