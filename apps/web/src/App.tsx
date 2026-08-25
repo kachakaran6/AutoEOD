@@ -3,9 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/contexts/ThemeContext'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
+import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignupPage } from '@/pages/SignupPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -16,14 +17,26 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ReportsHistoryPage } from '@/pages/ReportsHistoryPage'
 import { AdminPage } from '@/pages/Admin'
-import { useAuth } from '@/contexts/AuthContext'
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   if (!user || user.role !== 'ADMIN') {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
+}
+
+function PublicOrDashboardRoute() {
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return null
+  if (isAuthenticated) {
+    return (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    )
+  }
+  return <LandingPage />
 }
 
 const queryClient = new QueryClient({
@@ -42,9 +55,20 @@ export default function App() {
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public auth routes */}
+              {/* Public marketing & auth routes */}
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
+
+              {/* Root route: Shows Landing Page if logged out, or Dashboard inside AppLayout if logged in */}
+              <Route
+                path="/"
+                element={
+                  <PublicOrDashboardRoute />
+                }
+              >
+                <Route index element={<DashboardPage />} />
+              </Route>
 
               {/* Protected app routes */}
               <Route
@@ -54,7 +78,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/activity-log" element={<ActivityLogPage />} />
                 <Route path="/timeline" element={<TimelinePage />} />
                 <Route path="/integrations" element={<IntegrationsPage />} />
@@ -69,8 +93,9 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
-                <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
 
