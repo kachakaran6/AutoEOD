@@ -46,6 +46,7 @@ import {
   Cpu,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Copy,
   Filter,
   Zap,
@@ -100,6 +101,10 @@ export function AdminPage() {
   const [auditLevelFilter, setAuditLevelFilter] = useState<string>('all');
   const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>('all');
   const [auditSearch, setAuditSearch] = useState<string>('');
+  const [auditPage, setAuditPage] = useState<number>(1);
+  const [auditLimit, setAuditLimit] = useState<number>(50);
+  const [auditTotal, setAuditTotal] = useState<number>(0);
+  const [auditTotalPages, setAuditTotalPages] = useState<number>(1);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [autoRefreshLogs, setAutoRefreshLogs] = useState<boolean>(false);
   const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
@@ -183,14 +188,30 @@ export function AdminPage() {
     }
   };
 
-  const loadAuditLogs = async () => {
+  const loadAuditLogs = async (pageOverride?: number) => {
     setLoadingAuditLogs(true);
+    const targetPage = pageOverride ?? auditPage;
     try {
-      const data = await admin.getAuditLogs({
+      const data: any = await admin.getAuditLogs({
         level: auditLevelFilter,
         category: auditCategoryFilter,
+        page: targetPage,
+        limit: auditLimit,
+        search: auditSearch || undefined,
       });
-      setAuditLogs(data);
+
+      if (Array.isArray(data)) {
+        setAuditLogs(data);
+        setAuditTotal(data.length);
+        setAuditTotalPages(1);
+      } else if (data && data.logs) {
+        setAuditLogs(data.logs);
+        setAuditTotal(data.total || data.logs.length);
+        setAuditTotalPages(data.totalPages || 1);
+        if (targetPage !== auditPage) {
+          setAuditPage(targetPage);
+        }
+      }
     } catch (err: any) {
       toast.error('Failed to load audit logs: ' + (err.message || 'Error'));
     } finally {
@@ -206,7 +227,7 @@ export function AdminPage() {
     if (activeTab === 'analytics') loadAnalytics();
     if (activeTab === 'templates') loadTemplates();
     if (activeTab === 'audit') loadAuditLogs();
-  }, [activeTab, auditLevelFilter, auditCategoryFilter]);
+  }, [activeTab, auditLevelFilter, auditCategoryFilter, auditPage, auditLimit]);
 
   // Auto-refresh interval for audit logs and model diagnostics
   useEffect(() => {
@@ -216,7 +237,7 @@ export function AdminPage() {
       if (activeTab === 'models') loadModelsUsage();
     }, 8000);
     return () => clearInterval(interval);
-  }, [autoRefreshLogs, activeTab, auditLevelFilter, auditCategoryFilter]);
+  }, [autoRefreshLogs, activeTab, auditLevelFilter, auditCategoryFilter, auditPage, auditLimit]);
 
   // Save Config
   const handleSaveConfig = async (e: React.FormEvent) => {
@@ -1359,7 +1380,7 @@ export function AdminPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={loadAuditLogs}
+                onClick={() => loadAuditLogs()}
                 disabled={loadingAuditLogs}
                 className="gap-1.5 text-xs"
               >
@@ -1438,33 +1459,21 @@ export function AdminPage() {
                 <p>System, security, and AI events will appear here automatically.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-left text-xs text-foreground">
-                  <thead className="bg-muted/60 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px]">
-                    <tr>
-                      <th className="py-3 px-4 w-40">Timestamp</th>
-                      <th className="py-3 px-4">Action / Event</th>
-                      <th className="py-3 px-4 w-20">Level</th>
-                      <th className="py-3 px-4">User / Actor</th>
-                      <th className="py-3 px-4">Origin IP</th>
-                      <th className="py-3 px-4 text-right">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60 font-mono text-[11px]">
-                    {auditLogs
-                      .filter((log) => {
-                        if (!auditSearch.trim()) return true;
-                        const q = auditSearch.toLowerCase();
-                        return (
-                          log.action.toLowerCase().includes(q) ||
-                          (log.details && log.details.toLowerCase().includes(q)) ||
-                          (log.user?.name && log.user.name.toLowerCase().includes(q)) ||
-                          (log.user?.email && log.user.email.toLowerCase().includes(q)) ||
-                          (log.userId && log.userId.toLowerCase().includes(q)) ||
-                          (log.ipAddress && log.ipAddress.toLowerCase().includes(q))
-                        );
-                      })
-                      .map((log) => {
+              <div className="space-y-3">
+                <div className="overflow-x-auto overflow-y-auto max-h-[580px] rounded-xl border border-border shadow-xs">
+                  <table className="w-full text-left text-xs text-foreground">
+                    <thead className="bg-muted/95 backdrop-blur-xs text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px] sticky top-0 z-10">
+                      <tr>
+                        <th className="py-3 px-4 w-44 bg-muted/95">Timestamp</th>
+                        <th className="py-3 px-4 bg-muted/95">Action / Event</th>
+                        <th className="py-3 px-4 w-20 bg-muted/95">Level</th>
+                        <th className="py-3 px-4 bg-muted/95">User / Actor</th>
+                        <th className="py-3 px-4 bg-muted/95">Origin IP</th>
+                        <th className="py-3 px-4 text-right bg-muted/95">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60 font-mono text-[11px]">
+                      {auditLogs.map((log) => {
                         const isExpanded = expandedLogId === log.id;
                         let parsedDetails: any = null;
                         if (log.details) {
@@ -1621,8 +1630,67 @@ export function AdminPage() {
                           </React.Fragment>
                         );
                       })}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-1 text-xs">
+                  <div className="text-muted-foreground text-[11px]">
+                    Showing <span className="font-semibold text-foreground">{auditTotal > 0 ? (auditPage - 1) * auditLimit + 1 : 0}</span> to{' '}
+                    <span className="font-semibold text-foreground">{Math.min(auditPage * auditLimit, auditTotal)}</span> of{' '}
+                    <span className="font-semibold text-foreground">{auditTotal}</span> total records
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Rows per page selector */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>Rows:</span>
+                      <select
+                        value={auditLimit}
+                        onChange={(e) => {
+                          setAuditLimit(Number(e.target.value));
+                          setAuditPage(1);
+                        }}
+                        className="bg-muted border border-border rounded-md px-2 py-1 text-[11px] text-foreground outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                      </select>
+                    </div>
+
+                    {/* Page navigation */}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
+                        disabled={auditPage <= 1 || loadingAuditLogs}
+                        className="h-8 w-8 p-0 rounded-lg"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <span className="text-[11px] px-2 font-medium text-foreground">
+                        Page {auditPage} of {auditTotalPages}
+                      </span>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))}
+                        disabled={auditPage >= auditTotalPages || loadingAuditLogs}
+                        className="h-8 w-8 p-0 rounded-lg"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

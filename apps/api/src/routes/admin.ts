@@ -457,9 +457,12 @@ adminRouter.delete('/templates/:id', async (req: Request, res: Response): Promis
 // ── Audit Logs ────────────────────────────────────────────────────────────────
 adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 200, 500);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 500);
+    const skip = (page - 1) * limit;
     const level = req.query.level as string | undefined;
     const category = req.query.category as string | undefined;
+    const search = (req.query.search as string | undefined)?.trim();
 
     let whereClause: any = {};
     if (level && level !== 'all') {
@@ -480,13 +483,24 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
       }
     }
 
+    if (search) {
+      whereClause.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { details: { contains: search, mode: 'insensitive' } },
+        { ipAddress: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    let totalCount = await prisma.auditLog.count({ where: whereClause });
+
     let logs = await prisma.auditLog.findMany({
       where: whereClause,
+      skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
     });
 
-    if (logs.length === 0 && (!level || level === 'all') && (!category || category === 'all')) {
+    if (totalCount === 0 && (!level || level === 'all') && (!category || category === 'all') && !search) {
       const initialEvents = [
         {
           action: 'ADMIN_DASHBOARD_INITIALIZED',
@@ -514,7 +528,9 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
         await prisma.auditLog.create({ data: item });
       }
 
+      totalCount = await prisma.auditLog.count({ where: whereClause });
       logs = await prisma.auditLog.findMany({
+        skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       });
@@ -536,7 +552,13 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
       user: l.userId ? userMap.get(l.userId) || { id: l.userId, name: 'User', email: l.userId } : null,
     }));
 
-    res.json(enrichedLogs);
+    res.json({
+      logs: enrichedLogs,
+      total: totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit) || 1,
+    });
   } catch (err) {
     logger.error({ err }, 'Failed to fetch audit logs');
     res.status(500).json({ error: 'Internal server error' });

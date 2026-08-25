@@ -61,7 +61,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-full w-64 flex-col border-r border-border bg-card/95 backdrop-blur-md overflow-y-auto z-40',
+        'flex h-full w-full md:w-64 flex-col border-r border-border bg-card/95 backdrop-blur-md overflow-y-auto z-40',
         className
       )}
     >

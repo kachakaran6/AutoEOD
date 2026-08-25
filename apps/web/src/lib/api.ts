@@ -508,6 +508,14 @@ export interface AdminAnalytics {
   };
 }
 
+export interface AuditLogsResponse {
+  logs: AuditLogItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const admin = {
   getConfig: () => apiRequest<AdminSystemConfig>('/admin/config'),
   updateConfig: (data: Partial<AdminSystemConfig>) =>
@@ -537,13 +545,15 @@ export const admin = {
     apiRequest<{ success: boolean }>(`/admin/templates/${id}`, {
       method: 'DELETE',
     }),
-  getAuditLogs: (params?: { level?: string; category?: string; limit?: number }) => {
+  getAuditLogs: (params?: { level?: string; category?: string; limit?: number; page?: number; search?: string }) => {
     const qs = new URLSearchParams();
     if (params?.level && params.level !== 'all') qs.set('level', params.level);
     if (params?.category && params.category !== 'all') qs.set('category', params.category);
     if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.search) qs.set('search', params.search);
     const query = qs.toString() ? `?${qs.toString()}` : '';
-    return apiRequest<AuditLogItem[]>(`/admin/audit-logs${query}`);
+    return apiRequest<AuditLogsResponse>(`/admin/audit-logs${query}`);
   },
   getModelsUsage: () => apiRequest<AdminModelsUsage>('/admin/models-usage'),
   getAnalytics: () => apiRequest<AdminAnalytics>('/admin/analytics'),

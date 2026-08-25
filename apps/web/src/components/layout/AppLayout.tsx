@@ -16,22 +16,13 @@ export function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar (visible on md+) */}
       <div className="hidden md:flex h-full shrink-0">
-        <Sidebar />
+        <Sidebar className="w-64" />
       </div>
 
-      {/* Mobile Drawer (visible on < md when mobileNavOpen is true) */}
+      {/* Mobile Fullscreen Navigation (visible on < md when mobileNavOpen is true) */}
       {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          {/* Backdrop overlay */}
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
-            onClick={() => setMobileNavOpen(false)}
-          />
-
-          {/* Sliding drawer content */}
-          <div className="relative flex w-64 max-w-[80vw] flex-1 flex-col bg-card shadow-2xl z-10 animate-in slide-in-from-left duration-200">
-            <Sidebar onClose={() => setMobileNavOpen(false)} />
-          </div>
+        <div className="fixed inset-0 z-50 md:hidden flex flex-col bg-background animate-in fade-in duration-150">
+          <Sidebar onClose={() => setMobileNavOpen(false)} className="w-full border-r-0" />
         </div>
       )}
 
