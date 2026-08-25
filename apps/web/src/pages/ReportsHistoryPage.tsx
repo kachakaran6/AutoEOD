@@ -31,8 +31,16 @@ export function ReportsHistoryPage() {
   }
 
   return (
-    <div className="space-y-6">
-
+    <div className="space-y-4">
+      {/* Top Count Bar */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          All Reports
+        </span>
+        <Badge variant="secondary" className="text-xs px-2.5 py-0.5 font-mono">
+          {reportsList?.length || 0} {reportsList?.length === 1 ? 'report' : 'reports'}
+        </Badge>
+      </div>
 
       <div className="space-y-3">
         {reportsList?.length === 0 ? (

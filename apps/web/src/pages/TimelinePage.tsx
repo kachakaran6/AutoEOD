@@ -14,6 +14,7 @@ import {
   Activity,
   RefreshCw,
   Loader2,
+  GitBranch,
 } from 'lucide-react'
 import { activity, integrations } from '@/lib/api'
 import type { ActivityEvent } from '@/lib/api'
@@ -79,30 +80,45 @@ export function TimelinePage() {
   const isToday = date === format(new Date(), 'yyyy-MM-dd')
 
   return (
-    <div className="space-y-6">
-      {/* Header with date picker */}
+    <div className="space-y-4">
+      {/* ── Minimalist Unified Toolbar ─────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex-1"></div>
+        {/* View Mode Tabs */}
+        <div className="flex space-x-1 bg-muted/60 p-1 rounded-xl border border-border w-full sm:w-fit overflow-x-auto no-scrollbar">
+          <button 
+            onClick={() => setActiveTab('events')} 
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${activeTab === 'events' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+          >
+            GitHub Events
+          </button>
+          <button 
+            onClick={() => setActiveTab('minute')} 
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${activeTab === 'minute' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+          >
+            Minute Timeline
+          </button>
+        </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto flex-wrap">
-          <div className="flex items-center gap-1.5">
+        {/* Date Selector & Sync Button */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
               onClick={() => adjustDate(-1)}
               id="btn-prev-day"
               aria-label="Previous day"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center px-2.5 py-1 rounded-lg border border-border bg-card text-xs sm:text-sm font-medium min-w-28 sm:min-w-32 justify-center">
+            <div className="px-2.5 py-0.5 text-xs font-semibold text-foreground min-w-24 sm:min-w-28 text-center">
               {isToday ? 'Today' : format(new Date(date + 'T12:00:00'), 'MMM d, yyyy')}
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
               onClick={() => adjustDate(1)}
               disabled={isToday}
               id="btn-next-day"
@@ -115,7 +131,7 @@ export function TimelinePage() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 h-8 text-xs"
+            className="gap-2 h-9 text-xs font-medium rounded-xl shrink-0"
             onClick={() => {
               toast.info('Syncing...', { duration: 2000 })
               syncMutation.mutate()
@@ -128,24 +144,9 @@ export function TimelinePage() {
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            Sync Now
+            <span className="hidden sm:inline">Sync Now</span>
           </Button>
         </div>
-      </div>
-
-      <div className="flex space-x-1 bg-muted/70 p-1 rounded-xl w-full sm:w-fit overflow-x-auto no-scrollbar">
-        <button 
-          onClick={() => setActiveTab('events')} 
-          className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all shrink-0 ${activeTab === 'events' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:bg-background/50'}`}
-        >
-          GitHub / Browser Events
-        </button>
-        <button 
-          onClick={() => setActiveTab('minute')} 
-          className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all shrink-0 ${activeTab === 'minute' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:bg-background/50'}`}
-        >
-          Minute-by-Minute Timeline
-        </button>
       </div>
 
       {activeTab === 'events' ? (

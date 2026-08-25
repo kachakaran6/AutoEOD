@@ -75,59 +75,28 @@ export function ActivityLogPage() {
   const selectedCount = logs.filter(l => l.selected && !l.promotedToEventId).length
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <Activity className="w-6 h-6 text-primary" />
-            Activity Radar
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Inspect captured browser navigation, ChatGPT research, and promote key items into your daily report.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button 
-            onClick={() => promoteMutation.mutate()}
-            disabled={promoteMutation.isPending || (selectedCount === 0 && totalLogs === 0)}
-            className="gap-2 text-xs font-semibold h-9 rounded-xl shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Promote Selected to Report
-            {selectedCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-primary-foreground text-[10px] font-mono font-bold">
-                {selectedCount}
-              </span>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Filter Toolbar Card ────────────────────────────────────── */}
+    <div className="space-y-4">
+      {/* ── Unified Filter & Actions Toolbar ───────────────────────── */}
       <Card className="border-border bg-card">
-        <CardContent className="p-3.5 sm:p-4">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+        <CardContent className="p-3 sm:p-3.5">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
               {/* Date Selector */}
-              <div className="relative">
-                <Input 
-                  type="date" 
-                  value={dateFilter}
-                  onChange={(e) => {
-                    setDateFilter(e.target.value)
-                    setPage(1)
-                  }}
-                  className="w-full sm:w-44 text-xs h-9 pl-3 pr-2 rounded-xl bg-background"
-                />
-              </div>
+              <Input 
+                type="date" 
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full sm:w-40 text-xs h-9 pl-3 pr-2 rounded-xl bg-background"
+              />
 
               {/* Domain / Text Search */}
-              <div className="relative flex-1 max-w-md">
+              <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Filter by domain or title..."
+                  placeholder="Filter domain or title..."
                   value={domainFilter}
                   onChange={(e) => {
                     setDomainFilter(e.target.value)
@@ -136,10 +105,8 @@ export function ActivityLogPage() {
                   className="pl-9 text-xs h-9 rounded-xl bg-background w-full"
                 />
               </div>
-            </div>
 
-            {/* Quick selection actions & count */}
-            <div className="flex items-center justify-between md:justify-end gap-2 text-xs border-t md:border-t-0 pt-2 md:pt-0 border-border">
+              {/* Selection actions */}
               <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
@@ -160,10 +127,27 @@ export function ActivityLogPage() {
                   Clear
                 </Button>
               </div>
+            </div>
 
+            {/* Promote Action & Count */}
+            <div className="flex items-center justify-between lg:justify-end gap-2.5 border-t lg:border-t-0 pt-2 lg:pt-0 border-border">
               <Badge variant="secondary" className="text-[11px] font-normal px-2 py-0.5">
-                {totalLogs} {totalLogs === 1 ? 'activity' : 'activities'}
+                {totalLogs} {totalLogs === 1 ? 'log' : 'logs'}
               </Badge>
+
+              <Button 
+                onClick={() => promoteMutation.mutate()}
+                disabled={promoteMutation.isPending || (selectedCount === 0 && totalLogs === 0)}
+                className="gap-2 text-xs font-semibold h-9 rounded-xl shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Promote Selected
+                {selectedCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-primary-foreground text-[10px] font-mono font-bold">
+                    {selectedCount}
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -255,9 +239,6 @@ export function ActivityLogPage() {
                         <span className="text-xs font-semibold text-foreground truncate">
                           {log.domain}
                         </span>
-                        {log.isSuspicious && (
-                          <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Suspicious activity" />
-                        )}
                       </div>
 
                       <div className="col-span-4 min-w-0">

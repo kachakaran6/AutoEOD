@@ -74,20 +74,22 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex-1"></div>
-        <div className="flex items-center gap-2">
-          {/* GitHub sync status */}
-          {github && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+      {/* Top Sync & Status Bar (Minimalist) */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Overview
+        </span>
+
+        {github && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] text-muted-foreground shadow-2xs">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
               {github.lastSyncedAt
                 ? `Synced ${formatDistanceToNow(new Date(github.lastSyncedAt))} ago`
-                : 'Never synced'}
-            </div>
-          )}
-        </div>
+                : 'Syncing...'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* GitHub not connected warning */}

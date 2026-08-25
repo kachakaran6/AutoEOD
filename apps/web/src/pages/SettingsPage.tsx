@@ -1,7 +1,7 @@
 // apps/web/src/pages/SettingsPage.tsx
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Loader2, Info, CheckCircle2, XCircle, Eye, Palette, Sun, Moon, Monitor, Sparkles, Check } from 'lucide-react'
+import { Save, Loader2, Info, CheckCircle2, XCircle, Eye, Palette, Sun, Moon, Monitor, Sparkles, Check, Settings } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { settings as settingsApi, extensionSettings as extSettingsApi, getAccessToken, BASE_URL } from '@/lib/api'
 import type { UserSettings, UserExtensionSettings } from '@/lib/api'
@@ -120,20 +120,28 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1"></div>
+    <div className="space-y-4">
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Preferences & Schedule
+        </span>
+
         <Button
           onClick={() => saveMutation.mutate()}
           disabled={(!isDirty && !extIsDirty) || saveMutation.isPending}
           id="btn-save-settings"
+          className="h-8 px-3.5 rounded-xl text-xs font-semibold gap-1.5 shadow-xs"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Save className="h-4 w-4" />
+            <Save className="h-3.5 w-3.5" />
           )}
           Save Changes
+          {(isDirty || extIsDirty) && (
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          )}
         </Button>
       </div>
 
