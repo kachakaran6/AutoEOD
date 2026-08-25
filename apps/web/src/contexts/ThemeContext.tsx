@@ -74,7 +74,7 @@ type ThemeProviderState = {
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
-  accentColor: "violet",
+  accentColor: "pink",
   setAccentColor: () => null,
   accentOptions: ACCENT_COLORS,
 }
@@ -84,7 +84,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  defaultAccent = "violet",
+  defaultAccent = "pink",
   storageKey = "vite-ui-theme",
   accentStorageKey = "autoeod-accent",
   ...props

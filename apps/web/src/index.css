@@ -23,10 +23,10 @@
     --input: 220 15% 89%;
     --radius: 0.75rem;
 
-    /* Default Accent: Violet */
-    --primary: 260 84% 60%;
+    /* Default Accent: Soft Pink */
+    --primary: 346 84% 56%;
     --primary-foreground: 0 0% 100%;
-    --ring: 260 84% 60%;
+    --ring: 346 84% 56%;
   }
 
   .dark {
@@ -47,10 +47,10 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 13.5%;
     --input: 0 0% 13.5%;
-    --ring: 255 70% 65%;
+    --ring: 345 70% 64%;
 
-    /* Default Accent: Smooth Violet */
-    --primary: 255 70% 65%;
+    /* Default Accent: Soft Pink */
+    --primary: 345 70% 64%;
     --primary-foreground: 0 0% 100%;
   }
 

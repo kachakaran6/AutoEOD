@@ -52,9 +52,9 @@ export function LandingPage() {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary overflow-x-hidden font-sans">
       {/* ── Background Glow Effects ─────────────────────────────────── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-primary/10 rounded-full blur-[140px] opacity-70" />
-        <div className="absolute top-[40%] -left-40 w-[500px] h-[400px] bg-sky-500/5 rounded-full blur-[120px]" />
-        <div className="absolute top-[70%] -right-40 w-[500px] h-[400px] bg-purple-500/5 rounded-full blur-[120px]" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[750px] h-[500px] bg-rose-500/12 rounded-full blur-[140px] opacity-70" />
+        <div className="absolute top-[35%] -left-40 w-[500px] h-[400px] bg-pink-500/8 rounded-full blur-[120px]" />
+        <div className="absolute top-[65%] -right-40 w-[500px] h-[400px] bg-rose-500/8 rounded-full blur-[120px]" />
       </div>
 
       {/* ── Top Navigation Bar ───────────────────────────────────────── */}
@@ -64,10 +64,10 @@ export function LandingPage() {
           <Link to="/" className="flex items-center gap-2 group">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight text-foreground group-hover:text-primary transition-colors">
+                <span className="font-extrabold text-lg tracking-tight text-foreground group-hover:text-rose-500 transition-colors">
                   AutoEOD
                 </span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded-md border border-primary/25">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-rose-500/10 text-rose-500 rounded-md border border-rose-500/25">
                   v1.0
                 </span>
               </div>
@@ -98,7 +98,7 @@ export function LandingPage() {
 
             {isAuthenticated ? (
               <Link to="/dashboard">
-                <Button className="h-8.5 px-4 text-xs font-semibold rounded-xl gap-2 shadow-xs">
+                <Button className="h-8.5 px-4 text-xs font-semibold rounded-xl gap-2 shadow-xs bg-rose-500 hover:bg-rose-600 text-white">
                   <LayoutDashboard className="w-3.5 h-3.5" /> Open App
                 </Button>
               </Link>
@@ -110,7 +110,7 @@ export function LandingPage() {
                   </Button>
                 </Link>
                 <Link to="/signup">
-                  <Button className="h-8.5 px-4 text-xs font-semibold rounded-xl gap-1.5 shadow-sm shadow-primary/20">
+                  <Button className="h-8.5 px-4 text-xs font-semibold rounded-xl gap-1.5 shadow-sm shadow-rose-500/20 bg-rose-500 hover:bg-rose-600 text-white">
                     Get Started <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </Link>
@@ -123,16 +123,16 @@ export function LandingPage() {
       {/* ── Hero Section ────────────────────────────────────────────── */}
       <section className="relative z-10 pt-16 pb-20 md:pt-24 md:pb-28 px-4 sm:px-6 max-w-5xl mx-auto text-center">
         {/* Announcement Pill */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-medium mb-6 shadow-xs animate-fade-in">
-          <Sparkles className="w-3.5 h-3.5" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs font-medium mb-6 shadow-xs animate-fade-in">
+          <Sparkles className="w-3.5 h-3.5 text-rose-500" />
           <span>Automate your daily engineering standup & EOD summary</span>
-          <ChevronRight className="w-3 h-3 text-primary/70" />
+          <ChevronRight className="w-3 h-3 text-rose-500/70" />
         </div>
 
         {/* Main Headline */}
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground max-w-4xl mx-auto leading-[1.12]">
           Your daily work writes its own{' '}
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-purple-400 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 bg-clip-text text-transparent">
             executive report.
           </span>
         </h1>
@@ -145,7 +145,7 @@ export function LandingPage() {
         {/* CTA Group */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link to={isAuthenticated ? '/dashboard' : '/signup'} className="w-full sm:w-auto">
-            <Button size="lg" className="w-full sm:w-auto h-11 px-6 text-sm font-semibold rounded-xl gap-2 shadow-md shadow-primary/25">
+            <Button size="lg" className="w-full sm:w-auto h-11 px-6 text-sm font-semibold rounded-xl gap-2 shadow-md shadow-rose-500/25 bg-rose-500 hover:bg-rose-600 text-white">
               <Zap className="w-4 h-4 fill-current" />
               {isAuthenticated ? 'Go to Dashboard' : 'Start Tracking Free'}
               <ArrowRight className="w-4 h-4" />
