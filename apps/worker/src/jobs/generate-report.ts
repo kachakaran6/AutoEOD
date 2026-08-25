@@ -133,31 +133,45 @@ Return a JSON object with exactly this structure:
 
 async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> {
   const openai = getOpenAI();
-  const response = await openai.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    temperature: 0.3,
-    max_tokens: 1500,
-  });
+  let response: any;
+
+  try {
+    response = await openai.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+      max_tokens: 1500,
+    });
+  } catch (err: any) {
+    logger.warn({ model, err: err?.message }, 'json_object mode failed, retrying standard call');
+    response = await openai.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      max_tokens: 1500,
+    });
+  }
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error('Empty response from OpenAI');
 
-  let rawJson = content.trim();
-  if (rawJson.startsWith('```')) {
-    rawJson = rawJson.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```$/, '').trim();
-  }
+  let text = content.trim();
+  text = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '$1').trim();
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  text = text.replace(/^(?:User Safety|Safety Assessment|Reasoning|Response):\s*[^\n]*\n+/gim, '').trim();
 
   let parsed: any;
   try {
-    parsed = JSON.parse(rawJson);
-  } catch (err) {
-    const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[0]);
+    parsed = JSON.parse(text);
+  } catch {
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const candidate = text.substring(firstBrace, lastBrace + 1);
+      parsed = JSON.parse(candidate);
     } else {
-      throw new Error(`OpenAI output could not be parsed as JSON: ${content.substring(0, 200)}`);
+      throw new Error(`OpenAI output could not be parsed as JSON: ${content.substring(0, 300)}`);
     }
   }
 
