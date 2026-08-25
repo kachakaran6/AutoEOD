@@ -148,7 +148,7 @@ See [`.env.example`](.env.example) for a full breakdown of all configuration key
 | `GITHUB_CALLBACK_URL` | Optional | GitHub OAuth redirect callback URL |
 | `OPENAI_API_KEY` | Optional | OpenAI / Groq API key for report generation |
 | `OPENAI_BASE_URL` | Optional | Custom base URL (e.g., `https://api.groq.com/openai/v1`) |
-| `OPENAI_MODEL` | Optional | Model identifier (defaults to `llama-3.3-70b-versatile`) |
+| `OPENAI_MODEL` | Optional | Model identifier (e.g. `openai/gpt-oss-120b`, `gpt-4o-mini`) |
 | `GOOGLE_CLIENT_ID` | Optional | Google OAuth client ID for Gmail integration |
 | `GOOGLE_CLIENT_SECRET`| Optional | Google OAuth client secret |
 | `ZOHO_CLIENT_ID` | Optional | Zoho OAuth client ID for Zoho Mail integration |

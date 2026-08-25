@@ -10,9 +10,16 @@ function getOpenAI(): OpenAI {
     const apiKey = process.env.OPENAI_API_KEY;
     const baseURL = process.env.OPENAI_BASE_URL;
     if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+    const isOR = baseURL?.includes('openrouter.ai');
     _openai = new OpenAI({ 
       apiKey,
-      ...(baseURL ? { baseURL } : {})
+      ...(baseURL ? { baseURL } : {}),
+      ...(isOR ? {
+        defaultHeaders: {
+          'HTTP-Referer': process.env.FRONTEND_URL || 'https://autoeod.kachakaran.tech',
+          'X-Title': 'AutoEOD',
+        }
+      } : {})
     });
   }
   return _openai;
@@ -216,7 +223,22 @@ Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('Empty response from OpenAI');
 
-    const summariesMap = JSON.parse(content) as Record<string, string>;
+    let rawJson = content.trim();
+    if (rawJson.startsWith('```')) {
+      rawJson = rawJson.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```$/, '').trim();
+    }
+
+    let summariesMap: Record<string, string>;
+    try {
+      summariesMap = JSON.parse(rawJson) as Record<string, string>;
+    } catch (err) {
+      const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        summariesMap = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error(`Failed to parse AI summaries JSON: ${content.substring(0, 200)}`);
+      }
+    }
 
     for (const [id, summary] of Object.entries(summariesMap)) {
       await prisma.timelineSession.update({

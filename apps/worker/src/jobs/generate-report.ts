@@ -19,9 +19,16 @@ function getOpenAI(): OpenAI {
     const apiKey = process.env.OPENAI_API_KEY;
     const baseURL = process.env.OPENAI_BASE_URL;
     if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+    const isOR = baseURL?.includes('openrouter.ai');
     _openai = new OpenAI({ 
       apiKey,
-      ...(baseURL ? { baseURL } : {})
+      ...(baseURL ? { baseURL } : {}),
+      ...(isOR ? {
+        defaultHeaders: {
+          'HTTP-Referer': process.env.FRONTEND_URL || 'https://autoeod.kachakaran.tech',
+          'X-Title': 'AutoEOD',
+        }
+      } : {})
     });
   }
   return _openai;
@@ -137,7 +144,23 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error('Empty response from OpenAI');
 
-  const parsed = JSON.parse(content);
+  let rawJson = content.trim();
+  if (rawJson.startsWith('```')) {
+    rawJson = rawJson.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```$/, '').trim();
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch (err) {
+    const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error(`OpenAI output could not be parsed as JSON: ${content.substring(0, 200)}`);
+    }
+  }
+
   const validated = ReportOutputSchema.safeParse(parsed);
   if (!validated.success) {
     throw new Error(`OpenAI output validation failed: ${JSON.stringify(validated.error.flatten())}`);

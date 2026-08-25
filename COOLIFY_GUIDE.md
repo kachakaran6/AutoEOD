@@ -70,10 +70,10 @@ Deploying each component as an independent service is **much lighter, faster to 
 70:    ZOHO_CALLBACK_URL=https://autoeod-be.yourdomain.com/api/auth/zoho/callback
 71:    ZOHO_OAUTH_DOMAIN=https://accounts.zoho.com
 72:    ZOHO_API_DOMAIN=https://mail.zoho.com
-73:    OPENAI_API_KEY=your_groq_or_openai_api_key
-74:    OPENAI_BASE_URL=https://api.groq.com/openai/v1
-75:    OPENAI_MODEL=llama-3.3-70b-versatile
-76:    OPENAI_FALLBACK_MODEL=llama-3.3-70b-versatile
+73:    OPENAI_API_KEY=sk-or-v1-your-openrouter-key
+74:    OPENAI_BASE_URL=https://openrouter.ai/api/v1
+75:    OPENAI_MODEL=nvidia/nemotron-3.5-lightning:free
+76:    OPENAI_FALLBACK_MODEL=openrouter/free
 77:    RESEND_API_KEY=re_your-resend-api-key-here
 78:    EMAIL_FROM=AutoEOD <reports@yourdomain.com>
 79:    LOG_LEVEL=info
