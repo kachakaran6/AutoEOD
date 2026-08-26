@@ -168,7 +168,7 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
   // Strip common reasoning model preamble patterns BEFORE extracting JSON.
   // Models like nvidia/nemotron output "Here's a thinking process:" or
   // "Here's my reasoning:" etc. before the actual JSON object.
-  text = text.replace(/^(?:[\s\S]*?)(?=\{)/m, (match) => {
+  text = text.replace(/^(?:[\s\S]*?)(?=\{)/m, (match: string) => {
     // Only strip if the match looks like a preamble (not starting with '{' itself)
     if (!match.startsWith('{')) return '';
     return match;
