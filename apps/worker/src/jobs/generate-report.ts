@@ -142,7 +142,7 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       temperature: 0.2,
-      max_tokens: 1500,
+      max_tokens: 2000,
     });
   } catch (err: any) {
     logger.warn({ model, err: err?.message }, 'json_object mode failed, retrying standard call');
@@ -150,28 +150,49 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
       model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
-      max_tokens: 1500,
+      max_tokens: 2000,
     });
   }
 
   const content = response.choices[0]?.message?.content;
-  if (!content) throw new Error('Empty response from OpenAI');
+  if (!content || content.trim().length === 0) throw new Error('Empty response from OpenAI');
 
   let text = content.trim();
+
+  // Strip markdown code fences
   text = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '$1').trim();
+
+  // Strip <think>...</think> blocks (some reasoning models)
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  text = text.replace(/^(?:User Safety|Safety Assessment|Reasoning|Response):\s*[^\n]*\n+/gim, '').trim();
+
+  // Strip common reasoning model preamble patterns BEFORE extracting JSON.
+  // Models like nvidia/nemotron output "Here's a thinking process:" or
+  // "Here's my reasoning:" etc. before the actual JSON object.
+  text = text.replace(/^(?:[\s\S]*?)(?=\{)/m, (match) => {
+    // Only strip if the match looks like a preamble (not starting with '{' itself)
+    if (!match.startsWith('{')) return '';
+    return match;
+  });
 
   let parsed: any;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      const candidate = text.substring(firstBrace, lastBrace + 1);
-      parsed = JSON.parse(candidate);
-    } else {
+
+  // Strategy: always try to find the outermost JSON object first.
+  // This is more robust than parsing the full text when models prepend preamble.
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      parsed = JSON.parse(text.substring(firstBrace, lastBrace + 1));
+    } catch {
+      // Fall through to full-text parse attempt
+    }
+  }
+
+  if (!parsed) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
       throw new Error(`OpenAI output could not be parsed as JSON: ${content.substring(0, 300)}`);
     }
   }
