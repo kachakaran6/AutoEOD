@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../middleware/auth';
 import { recordAuditLog } from '../lib/audit';
+import { logger } from '../lib/logger';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
