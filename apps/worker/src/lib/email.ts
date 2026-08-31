@@ -1,4 +1,5 @@
 // apps/worker/src/lib/email.ts
+import { DateTime } from 'luxon';
 import { EmailProviderService } from './email-provider';
 import type { Report } from '@autoeod/db';
 
@@ -31,6 +32,7 @@ interface SendReportOptions {
   ccEmails?: string;
   template?: string;
   timelineSessions?: any[];
+  timezone?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -100,19 +102,22 @@ function getTimeBlocksHtml(timeBlocks?: any[]): string {
 }
 
 // 1. Professional (Default)
-function renderProfessional(report: Report, senderName: string, timelineSessions?: any[]): string {
+function renderProfessional(report: Report, senderName: string, timelineSessions?: any[], timezone?: string): string {
   const completedHtml = getListHtml(report.completedItems as string[]);
   const inProgressHtml = getListHtml(report.inProgressItems as string[]);
   const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
 
   let timelineHtml = '';
   if (timelineSessions && timelineSessions.length > 0) {
+    const tz = timezone || 'UTC';
     timelineHtml = `
       <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
       <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">⏱️ Today's Timeline</h3>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px;">
         ${timelineSessions.map(s => {
-          const time = new Date(s.startTime).toISOString().substr(11, 5) + '–' + new Date(s.endTime).toISOString().substr(11, 5);
+          const sTime = DateTime.fromJSDate(new Date(s.startTime), { zone: tz }).toFormat('HH:mm');
+          const eTime = DateTime.fromJSDate(new Date(s.endTime), { zone: tz }).toFormat('HH:mm');
+          const time = `${sTime} – ${eTime}`;
           return `<div style="margin-bottom:12px;last-child:{margin-bottom:0;}">
             <div style="font-size:12px;color:#6b7280;font-family:monospace;">${time}</div>
             <div style="font-size:14px;color:#374151;">${escapeHtml(s.aiSummary || s.windowTitle || s.appName)}</div>
@@ -416,7 +421,8 @@ export async function sendReportEmail({
   managerEmail,
   ccEmails,
   template = 'professional',
-  timelineSessions
+  timelineSessions,
+  timezone
 }: SendReportOptions): Promise<void> {
   const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : undefined;
   
@@ -439,7 +445,7 @@ export async function sendReportEmail({
       break;
     case 'professional':
     default:
-      html = renderProfessional(report, senderName, timelineSessions);
+      html = renderProfessional(report, senderName, timelineSessions, timezone);
       break;
   }
 

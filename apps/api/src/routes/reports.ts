@@ -143,6 +143,7 @@ reportsRouter.post('/:id/send', requireAuth, async (req: Request, res: Response)
       managerEmail: settings.managerEmail,
       ccEmails: settings.ccEmails || undefined,
       template: settings.reportTemplate,
+      timezone: settings.timezone || 'UTC',
     });
 
     const updated = await prisma.report.update({

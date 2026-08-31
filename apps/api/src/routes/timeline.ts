@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { DateTime } from 'luxon';
 import { prisma } from '@autoeod/db';
 import { requireAuth } from '../middleware/auth';
 import { recordAuditLog } from '../lib/audit';
@@ -121,15 +122,19 @@ timelineRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!;
   const dateStr = req.query.date as string; // YYYY-MM-DD
   
-  let startOfDay, endOfDay;
-  if (dateStr) {
-    startOfDay = new Date(dateStr + 'T00:00:00.000Z');
-    endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+  const settings = await prisma.userSettings.findUnique({ where: { userId } });
+  const tz = settings?.timezone || 'UTC';
+
+  let startOfDay: Date;
+  let endOfDay: Date;
+
+  if (dateStr && DateTime.fromISO(dateStr).isValid) {
+    startOfDay = DateTime.fromISO(dateStr, { zone: tz }).startOf('day').toJSDate();
+    endOfDay = DateTime.fromISO(dateStr, { zone: tz }).endOf('day').toJSDate();
   } else {
-    startOfDay = new Date();
-    startOfDay.setHours(0,0,0,0);
-    endOfDay = new Date();
-    endOfDay.setHours(23,59,59,999);
+    const nowInTz = DateTime.now().setZone(tz);
+    startOfDay = nowInTz.startOf('day').toJSDate();
+    endOfDay = nowInTz.endOf('day').toJSDate();
   }
 
   const sessions = await prisma.timelineSession.findMany({

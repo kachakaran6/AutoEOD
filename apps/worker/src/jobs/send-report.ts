@@ -1,5 +1,6 @@
 // apps/worker/src/jobs/send-report.ts
 import { prisma } from '@autoeod/db';
+import { DateTime } from 'luxon';
 import { logger } from '../lib/logger';
 import { sendReportEmail } from '../lib/email';
 import { recordAuditLog } from '../lib/audit';
@@ -43,11 +44,10 @@ export async function sendReportJob(data: SendReportJobData): Promise<void> {
   const timelineSettings = await prisma.timelineSettings.findUnique({ where: { userId } });
   
   let timelineSessions: any[] = [];
+  const tz = settings.timezone || 'UTC';
   if (timelineSettings?.enabled) {
-    const tz = settings.timezone;
-    // Basic day bounds based on reportDate
-    const startOfDay = new Date(report.reportDate + 'T00:00:00.000Z');
-    const endOfDay = new Date(report.reportDate + 'T23:59:59.999Z');
+    const startOfDay = DateTime.fromISO(report.reportDate, { zone: tz }).startOf('day').toJSDate();
+    const endOfDay = DateTime.fromISO(report.reportDate, { zone: tz }).endOf('day').toJSDate();
     
     timelineSessions = await prisma.timelineSession.findMany({
       where: {
@@ -63,6 +63,7 @@ export async function sendReportJob(data: SendReportJobData): Promise<void> {
     await sendReportEmail({
       report,
       timelineSessions,
+      timezone: tz,
       senderName: report.user.name,
       managerEmail: settings.managerEmail,
       ccEmails: settings.ccEmails || undefined,

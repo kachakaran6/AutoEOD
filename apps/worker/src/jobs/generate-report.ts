@@ -78,8 +78,25 @@ export function getModelCascade(): string[] {
 
 
 function buildPrompt(
-  events: Array<{ source: string; type: string; title: string; repo: string; url: string; occurredAt: Date; rawPayload: any }>,
-  settings: { reportTemplate: string; reportLanguage: string; workStartTime: string; workEndTime: string; includeTimeBlocks?: boolean },
+  events: Array<{
+    source: string;
+    type: string;
+    title: string;
+    repo: string;
+    url: string;
+    occurredAt: Date;
+    startTime?: Date;
+    endTime?: Date;
+    rawPayload: any;
+  }>,
+  settings: {
+    reportTemplate: string;
+    reportLanguage: string;
+    workStartTime: string;
+    workEndTime: string;
+    includeTimeBlocks?: boolean;
+    timezone: string;
+  },
   reportDate: string
 ): string {
   const toneMap: Record<string, string> = {
@@ -88,6 +105,7 @@ function buildPrompt(
     modern: 'clear, approachable, and well-structured professional tone',
     executive: 'highly formal, dense, and objective executive summary tone',
     creative: 'friendly, modern, and engaging tone for a startup team',
+    qwintsoft: 'straightforward, concise, and structured daily update format',
   };
   const tone = toneMap[settings.reportTemplate] || toneMap.professional;
 
@@ -97,18 +115,26 @@ function buildPrompt(
     gujarati: 'Gujarati',
   };
   const language = langMap[settings.reportLanguage] || 'English';
+  const tz = settings.timezone || 'UTC';
 
   let eventsText =
     events.length === 0
       ? 'No activity was recorded today.'
       : events
           .map((e) => {
-            // Highly compressed format to save tokens while keeping ALL events
-            const time = DateTime.fromJSDate(e.occurredAt).toFormat('HH:mm');
-            let desc = `[${time}] ${e.source.toUpperCase()}: ${e.title}`;
+            let timeStr: string;
+            if (e.startTime && e.endTime) {
+              const s = DateTime.fromJSDate(e.startTime, { zone: tz }).toFormat('HH:mm');
+              const end = DateTime.fromJSDate(e.endTime, { zone: tz }).toFormat('HH:mm');
+              timeStr = s === end ? s : `${s} – ${end}`;
+            } else {
+              timeStr = DateTime.fromJSDate(e.occurredAt, { zone: tz }).toFormat('HH:mm');
+            }
+
+            let desc = `[${timeStr}] ${e.source.toUpperCase()}: ${e.title}`;
             
             if (e.repo) desc += ` (Repo: ${e.repo})`;
-            if (e.source === 'github') desc += ` (URL: ${e.url})`;
+            if (e.source === 'github' && e.url) desc += ` (URL: ${e.url})`;
 
             if (e.source === 'chatgpt' && e.rawPayload?.messages) {
               const msgs = e.rawPayload.messages.slice(-2); // Only last 2
@@ -117,7 +143,7 @@ function buildPrompt(
             } else if (e.source === 'browser' && e.rawPayload?.durationSeconds) {
               const mins = Math.floor(e.rawPayload.durationSeconds / 60);
               const secs = e.rawPayload.durationSeconds % 60;
-              if (mins > 0 || secs > 30) desc += ` (${mins}m ${secs}s)`;
+              if (mins > 0 || secs > 30) desc += ` (${mins}m ${secs}s active)`;
             }
             return desc;
           })
@@ -131,14 +157,18 @@ function buildPrompt(
   const timeBlockInstructions = settings.includeTimeBlocks
     ? `
 10. Time-Block Chronological Activity & Surfing Breakdown:
-Because Time-Block Breakdown is ENABLED, synthesize the day's activity into 3 to 8 logical chronological time brackets spanning from work start to work end.
-For each time bracket, collaborate GitHub commits/PRs, web surfing logs, and desktop window sessions:
-- "startTime": e.g. "09:00"
-- "endTime": e.g. "10:30"
-- "title": Concise 1-line title of the primary work or focus area (e.g. "Core AI Model Fallback Architecture & Development")
-- "category": One of "development", "research", "browsing", "review", "debugging", "meeting", "planning", "work"
-- "details": 1-2 sentences describing what was accomplished, researched, or surfed during this time block
-- "toolsAndWebsites": Array of key tools, repos, or websites visited (e.g. ["docs.openrouter.ai", "github.com", "VS Code"])
+Because Time-Block Breakdown is ENABLED, synthesize the day's activity into logical chronological time brackets spanning the user's active periods.
+CRITICAL TIMING RULES:
+- Use the EXACT timestamps and time intervals from the activity events above (all timestamps are in the user's timezone ${tz}).
+- NEVER assign multiple distinct websites or tasks to the same generic end-of-day interval (e.g. NEVER make multiple blocks all set to 18:25–18:30).
+- If the user visited Coolify at 16:05–16:30, Gmail at 17:15–17:35, Vault X at 17:40–18:05, and RapidAPI at 18:10–18:30, EACH of these must have its own distinct, accurate "startTime" and "endTime" matching when it actually occurred!
+- For each time bracket:
+  - "startTime": 24-hour format "HH:mm" matching the actual start time in the events (e.g. "14:34", "16:05", "17:15")
+  - "endTime": 24-hour format "HH:mm" matching the actual completion/switch time in the events (e.g. "15:30", "16:30", "17:35")
+  - "title": Concise 1-line title of the primary work or focus area (e.g. "Coolify Deployment Review & Frontend Validation")
+  - "category": One of "development", "research", "browsing", "review", "debugging", "meeting", "planning", "work"
+  - "details": 1-2 sentences describing what was accomplished, researched, or surfed during this specific time block
+  - "toolsAndWebsites": Array of exact tools, repos, or websites used during this time block (e.g. ["coolify.kachakaran.tech", "github.com/kachakaran6/AutoEOD"])
 
 Return a JSON object with this exact structure:
 {
@@ -171,11 +201,12 @@ Return a JSON object with exactly this structure:
   return `You are an AI assistant that drafts daily EOD (End-of-Day) work reports on behalf of a software engineer.
 
 Today's date: ${reportDate}
+User Timezone: ${tz}
 Work hours: ${settings.workStartTime} to ${settings.workEndTime}
 Tone: ${tone}
 Language: Write ALL output fields in ${language}
 
-Below is the complete list of activity recorded for my work today:
+Below is the complete list of activity recorded for my work today (all timestamps are in ${tz}):
 
 ${eventsText}
 
@@ -280,6 +311,7 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
             toolsAndWebsites: Array.isArray(b?.toolsAndWebsites) ? b.toolsAndWebsites.map(String).filter(Boolean) : [],
           }))
           .filter((b: any) => b.startTime && b.endTime && b.title)
+          .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime))
       : undefined,
   };
 
@@ -308,17 +340,10 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     throw new Error(`No settings found for user ${userId}`);
   }
 
-  const tz = settings.timezone;
-  const dayStart = DateTime.fromISO(reportDate, { zone: tz }).set({
-    hour: parseInt(settings.workStartTime.split(':')[0]),
-    minute: parseInt(settings.workStartTime.split(':')[1]),
-    second: 0,
-  });
-  const dayEnd = DateTime.fromISO(reportDate, { zone: tz }).set({
-    hour: parseInt(settings.workEndTime.split(':')[0]),
-    minute: parseInt(settings.workEndTime.split(':')[1]),
-    second: 59,
-  });
+  const tz = settings.timezone || 'UTC';
+  // Use full calendar day in user's timezone to ensure all activities performed today are captured
+  const dayStart = DateTime.fromISO(reportDate, { zone: tz }).startOf('day');
+  const dayEnd = DateTime.fromISO(reportDate, { zone: tz }).endOf('day');
 
   const events: any[] = await prisma.activityEvent.findMany({
     where: {
@@ -332,49 +357,8 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     select: { id: true, source: true, type: true, title: true, repo: true, url: true, occurredAt: true, rawPayload: true },
   });
 
-  if ((settings as any).includeRadarLogs) {
-    const radarLogs = await prisma.browserActivityLog.findMany({
-      where: {
-        userId,
-        tabOpenedAt: {
-          gte: dayStart.toJSDate(),
-          lte: dayEnd.toJSDate(),
-        },
-        promotedToEventId: null, // Only unpromoted ones to prevent double-counting
-      },
-    });
-
-    const domainStats = new Map<string, { duration: number; title: string; count: number }>();
-    for (const log of radarLogs) {
-      const current = domainStats.get(log.domain) || { duration: 0, title: log.pageTitle, count: 0 };
-      domainStats.set(log.domain, {
-        duration: current.duration + log.durationSeconds,
-        title: log.pageTitle || current.title,
-        count: current.count + 1,
-      });
-    }
-
-    for (const [domain, stats] of domainStats.entries()) {
-      if (stats.duration < 60) continue; // Skip noise under 1 minute
-
-      const durationMins = Math.floor(stats.duration / 60);
-      const durationSecs = stats.duration % 60;
-      
-      events.push({
-        id: `radar-summary-${domain}`,
-        source: 'browser',
-        type: 'radar_summary',
-        title: `Browsed ${domain} (${durationMins}m ${durationSecs}s, ${stats.count} visits) - e.g. ${stats.title}`,
-        repo: '',
-        url: `https://${domain}`,
-        occurredAt: dayEnd.toJSDate(),
-        rawPayload: { durationSeconds: stats.duration, count: stats.count },
-      });
-    }
-  }
-
+  // Fetch timeline sessions if timeblocks or timeline tracking is enabled
   if ((settings as any).includeTimeBlocks) {
-    // Fetch timeline sessions if any
     const timelineSessions = await prisma.timelineSession.findMany({
       where: {
         userId,
@@ -388,7 +372,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     });
 
     for (const session of timelineSessions) {
-      const durMins = Math.round(session.durationSeconds / 60);
+      const durMins = Math.max(1, Math.round(session.durationSeconds / 60));
       events.push({
         id: `timeline-${session.id}`,
         source: 'desktop',
@@ -397,38 +381,104 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
         repo: session.project || '',
         url: '',
         occurredAt: session.startTime,
+        startTime: session.startTime,
+        endTime: session.endTime,
         rawPayload: { durationSeconds: session.durationSeconds, appName: session.appName, windowTitle: session.windowTitle, aiSummary: session.aiSummary }
       });
     }
+  }
 
-    // Also fetch detailed browser logs if not already included via Radar
-    if (!(settings as any).includeRadarLogs) {
-      const browserLogs = await prisma.browserActivityLog.findMany({
-        where: {
-          userId,
-          tabOpenedAt: {
-            gte: dayStart.toJSDate(),
-            lte: dayEnd.toJSDate(),
-          },
-          durationSeconds: { gte: 30 },
+  // Fetch and cluster browser activity logs if includeRadarLogs or includeTimeBlocks is enabled
+  if ((settings as any).includeRadarLogs || (settings as any).includeTimeBlocks) {
+    const browserLogs = await prisma.browserActivityLog.findMany({
+      where: {
+        userId,
+        tabOpenedAt: {
+          gte: dayStart.toJSDate(),
+          lte: dayEnd.toJSDate(),
         },
-        orderBy: { tabOpenedAt: 'asc' },
-      });
+        promotedToEventId: null, // Only unpromoted ones to prevent double-counting
+      },
+      orderBy: { tabOpenedAt: 'asc' },
+    });
 
-      for (const log of browserLogs) {
-        const mins = Math.floor(log.durationSeconds / 60);
-        const secs = log.durationSeconds % 60;
-        events.push({
-          id: `browser-${log.id}`,
-          source: 'browser',
-          type: 'tab_visit',
-          title: `Surfed ${log.domain} (${mins}m ${secs}s) - ${log.pageTitle}`,
-          repo: '',
-          url: log.url,
-          occurredAt: log.tabOpenedAt,
-          rawPayload: { durationSeconds: log.durationSeconds, domain: log.domain, pageTitle: log.pageTitle }
+    // Cluster consecutive or proximate browsing on the same domain/task into chronological sessions
+    const clusters: Array<{
+      domain: string;
+      startTime: Date;
+      endTime: Date;
+      durationSeconds: number;
+      visitCount: number;
+      pageTitles: Set<string>;
+      urls: string[];
+    }> = [];
+
+    const SESSION_GAP_MS = 15 * 60 * 1000; // 15 minutes max idle gap to merge into same session
+
+    for (const log of browserLogs) {
+      const logStart = new Date(log.tabOpenedAt);
+      const logEnd = log.tabClosedAt 
+        ? new Date(log.tabClosedAt) 
+        : new Date(logStart.getTime() + Math.max(log.durationSeconds, 5) * 1000);
+
+      // Find an active cluster for the same domain that ended recently
+      const matchingCluster = clusters.find(
+        (c) => c.domain === log.domain && (logStart.getTime() - c.endTime.getTime() <= SESSION_GAP_MS)
+      );
+
+      if (matchingCluster) {
+        if (logEnd > matchingCluster.endTime) {
+          matchingCluster.endTime = logEnd;
+        }
+        matchingCluster.durationSeconds += log.durationSeconds;
+        matchingCluster.visitCount += 1;
+        if (log.pageTitle && log.pageTitle.trim() && log.pageTitle !== 'Untitled') {
+          matchingCluster.pageTitles.add(log.pageTitle.trim());
+        }
+        if (log.url && !matchingCluster.urls.includes(log.url)) {
+          matchingCluster.urls.push(log.url);
+        }
+      } else {
+        const pageTitles = new Set<string>();
+        if (log.pageTitle && log.pageTitle.trim() && log.pageTitle !== 'Untitled') {
+          pageTitles.add(log.pageTitle.trim());
+        }
+        clusters.push({
+          domain: log.domain,
+          startTime: logStart,
+          endTime: logEnd,
+          durationSeconds: log.durationSeconds,
+          visitCount: 1,
+          pageTitles,
+          urls: log.url ? [log.url] : [],
         });
       }
+    }
+
+    for (const cluster of clusters) {
+      // Skip negligible noise (< 20 seconds unless multiple visits)
+      if (cluster.durationSeconds < 20 && cluster.visitCount < 2) continue;
+
+      const durationMins = Math.floor(cluster.durationSeconds / 60);
+      const durationSecs = cluster.durationSeconds % 60;
+      const durationStr = durationMins > 0 ? `${durationMins}m ${durationSecs}s` : `${durationSecs}s`;
+      
+      const titlesArray = Array.from(cluster.pageTitles);
+      const sampleTitle = titlesArray.slice(0, 2).join(' / ') || cluster.domain;
+      const visitStr = cluster.visitCount > 1 ? `, ${cluster.visitCount} visits` : '';
+
+      events.push({
+        id: `browser-session-${cluster.domain}-${cluster.startTime.getTime()}`,
+        source: 'browser',
+        type: 'browsing_session',
+        title: `Surfed ${cluster.domain} (${durationStr}${visitStr}) - ${sampleTitle}`,
+        repo: '',
+        url: cluster.urls[0] || `https://${cluster.domain}`,
+        occurredAt: cluster.startTime,
+        startTime: cluster.startTime,
+        endTime: cluster.endTime,
+        rawPayload: { durationSeconds: cluster.durationSeconds, count: cluster.visitCount, domain: cluster.domain, titles: titlesArray },
+      });
     }
   }
 
@@ -438,13 +488,14 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
   logger.info({ userId, reportDate, eventCount: events.length }, 'Events fetched for report');
 
   const prompt = buildPrompt(
-    events.map((e) => ({ ...e, occurredAt: e.occurredAt })),
+    events,
     {
       reportTemplate: settings.reportTemplate,
       reportLanguage: settings.reportLanguage,
       workStartTime: settings.workStartTime,
       workEndTime: settings.workEndTime,
       includeTimeBlocks: (settings as any).includeTimeBlocks ?? false,
+      timezone: tz,
     },
     reportDate
   );

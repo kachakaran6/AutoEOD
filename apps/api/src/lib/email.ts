@@ -1,4 +1,5 @@
-// apps/worker/src/lib/email.ts
+// apps/api/src/lib/email.ts
+import { DateTime } from 'luxon';
 import { EmailProviderService } from './email-provider';
 import type { Report } from '@autoeod/db';
 
@@ -30,6 +31,8 @@ interface SendReportOptions {
   managerEmail: string;
   ccEmails?: string;
   template?: string;
+  timelineSessions?: any[];
+  timezone?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -50,10 +53,79 @@ function getListHtml(items: string[], bulletStyle: string = 'margin:4px 0;', lis
   return `<ul style="${listStyle}">${items.map((i) => `<li style="${bulletStyle}">${escapeHtml(i)}</li>`).join('')}</ul>`;
 }
 
+function getTimeBlocksHtml(timeBlocks?: any[]): string {
+  if (!timeBlocks || !Array.isArray(timeBlocks) || timeBlocks.length === 0) return '';
+
+  const categoryColors: Record<string, { bg: string; text: string }> = {
+    development: { bg: '#dbeafe', text: '#1e40af' },
+    research: { bg: '#fef3c7', text: '#92400e' },
+    browsing: { bg: '#e0e7ff', text: '#3730a3' },
+    review: { bg: '#f3e8ff', text: '#6b21a8' },
+    debugging: { bg: '#fee2e2', text: '#991b1b' },
+    meeting: { bg: '#dcfce7', text: '#166534' },
+    planning: { bg: '#ffedd5', text: '#9a3412' },
+    work: { bg: '#f3f4f6', text: '#374151' },
+  };
+
+  return `
+    <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
+    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">⏱️ Activity & Surfing Breakdown</h3>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
+      ${timeBlocks.map((b: any) => {
+        const time = `${escapeHtml(b.startTime || '')} – ${escapeHtml(b.endTime || '')}`;
+        const title = escapeHtml(b.title || '');
+        const details = b.details ? `<div style="font-size:13px;color:#4b5563;margin-top:3px;line-height:1.4;">${escapeHtml(b.details)}</div>` : '';
+        const cat = (b.category || 'work').toLowerCase();
+        const colors = categoryColors[cat] || categoryColors.work;
+        const categoryBadge = `<span style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;background:${colors.bg};color:${colors.text};padding:2px 6px;border-radius:4px;margin-left:8px;font-weight:600;">${escapeHtml(cat)}</span>`;
+
+        const tools = Array.isArray(b.toolsAndWebsites) && b.toolsAndWebsites.length > 0
+          ? `<div style="margin-top:6px;">
+              ${b.toolsAndWebsites.map((t: string) => `<span style="font-size:11px;background:#e5e7eb;color:#374151;border-radius:4px;padding:2px 6px;display:inline-block;margin-right:4px;margin-top:2px;">${escapeHtml(t)}</span>`).join('')}
+             </div>`
+          : '';
+
+        return `
+          <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #edf0f3;">
+            <div>
+              <span style="font-size:12px;font-weight:600;color:#4b5563;font-family:monospace;background:#ffffff;border:1px solid #d1d5db;padding:2px 6px;border-radius:4px;">${time}</span>
+              ${categoryBadge}
+            </div>
+            <div style="font-size:14px;font-weight:600;color:#111827;margin-top:4px;">${title}</div>
+            ${details}
+            ${tools}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 // 1. Professional (Default)
-function renderProfessional(report: Report, senderName: string): string {
+function renderProfessional(report: Report, senderName: string, timelineSessions?: any[], timezone?: string): string {
   const completedHtml = getListHtml(report.completedItems as string[]);
   const inProgressHtml = getListHtml(report.inProgressItems as string[]);
+  const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
+
+  let timelineHtml = '';
+  if (timelineSessions && timelineSessions.length > 0) {
+    const tz = timezone || 'UTC';
+    timelineHtml = `
+      <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
+      <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">⏱️ Today's Timeline</h3>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px;">
+        ${timelineSessions.map(s => {
+          const sTime = DateTime.fromJSDate(new Date(s.startTime), { zone: tz }).toFormat('HH:mm');
+          const eTime = DateTime.fromJSDate(new Date(s.endTime), { zone: tz }).toFormat('HH:mm');
+          const time = `${sTime} – ${eTime}`;
+          return `<div style="margin-bottom:12px;last-child:{margin-bottom:0;}">
+            <div style="font-size:12px;color:#6b7280;font-family:monospace;">${time}</div>
+            <div style="font-size:14px;color:#374151;">${escapeHtml(s.aiSummary || s.windowTitle || s.appName)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+  }
 
   return `
 <!DOCTYPE html>
@@ -83,6 +155,9 @@ function renderProfessional(report: Report, senderName: string): string {
   <h3 style="font-size:14px;font-weight:600;margin:16px 0 6px;text-transform:uppercase;letter-spacing:0.5px;color:#333;">📅 Tomorrow's Plan</h3>
   <p style="margin:4px 0;">${escapeHtml(report.tomorrowPlan)}</p>` : ''}
 
+  ${timeBlocksHtml}
+  ${timelineHtml}
+
   <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
   <p style="font-size:12px;color:#999;margin:0;">Sent via AutoEOD</p>
 </body>
@@ -93,6 +168,7 @@ function renderProfessional(report: Report, senderName: string): string {
 function renderMinimalist(report: Report, senderName: string): string {
   const completedHtml = getListHtml(report.completedItems as string[], 'margin:6px 0;line-height:1.5;');
   const inProgressHtml = getListHtml(report.inProgressItems as string[], 'margin:6px 0;line-height:1.5;');
+  const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
 
   return `
 <!DOCTYPE html>
@@ -122,6 +198,8 @@ function renderMinimalist(report: Report, senderName: string): string {
   ${report.tomorrowPlan ? `
   <h2 style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin:0 0 10px 0;">Tomorrow</h2>
   <p style="font-size:15px; margin-bottom:24px;">${escapeHtml(report.tomorrowPlan)}</p>` : ''}
+
+  ${timeBlocksHtml}
 </body>
 </html>`;
 }
@@ -130,6 +208,7 @@ function renderMinimalist(report: Report, senderName: string): string {
 function renderModern(report: Report, senderName: string): string {
   const completedHtml = getListHtml(report.completedItems as string[], 'margin:8px 0; background:#fff; padding:10px 14px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid #eaeaea;', 'list-style:none; padding:0; margin:12px 0;');
   const inProgressHtml = getListHtml(report.inProgressItems as string[], 'margin:8px 0; background:#fff; padding:10px 14px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid #eaeaea;', 'list-style:none; padding:0; margin:12px 0;');
+  const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
 
   return `
 <!DOCTYPE html>
@@ -175,6 +254,7 @@ function renderModern(report: Report, senderName: string): string {
     </div>
   </div>` : ''}
 
+  ${timeBlocksHtml}
 </body>
 </html>`;
 }
@@ -183,6 +263,7 @@ function renderModern(report: Report, senderName: string): string {
 function renderExecutive(report: Report, senderName: string): string {
   const completedHtml = getListHtml(report.completedItems as string[], 'margin:4px 0;', 'margin:8px 0;padding-left:16px;color:#333;');
   const inProgressHtml = getListHtml(report.inProgressItems as string[], 'margin:4px 0;', 'margin:8px 0;padding-left:16px;color:#333;');
+  const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
 
   return `
 <!DOCTYPE html>
@@ -223,6 +304,8 @@ function renderExecutive(report: Report, senderName: string): string {
   ${report.tomorrowPlan ? `
   <h2 style="font-size:14px; color:#1e3a8a; margin:0 0 8px 0; font-weight:bold;">NEXT STEPS</h2>
   <p style="margin:0 0 20px 0; font-size:14px;">${escapeHtml(report.tomorrowPlan)}</p>` : ''}
+
+  ${timeBlocksHtml}
 </body>
 </html>`;
 }
@@ -231,6 +314,7 @@ function renderExecutive(report: Report, senderName: string): string {
 function renderCreative(report: Report, senderName: string): string {
   const completedHtml = getListHtml(report.completedItems as string[], 'margin:8px 0; padding-left:10px; border-left:2px solid #8b5cf6;', 'list-style:none; padding:0; margin:12px 0;');
   const inProgressHtml = getListHtml(report.inProgressItems as string[], 'margin:8px 0; padding-left:10px; border-left:2px solid #3b82f6;', 'list-style:none; padding:0; margin:12px 0;');
+  const timeBlocksHtml = getTimeBlocksHtml((report as any).timeBlocks as any[]);
 
   return `
 <!DOCTYPE html>
@@ -281,6 +365,8 @@ function renderCreative(report: Report, senderName: string): string {
     </h2>
     <p style="margin:0; font-size:15px; color:#4b5563;">${escapeHtml(report.tomorrowPlan)}</p>
   </div>` : ''}
+
+  ${timeBlocksHtml}
 </body>
 </html>`;
 }
@@ -298,6 +384,11 @@ function renderQwintsoft(report: Report, senderName: string): string {
   const issues = report.blockers ? escapeHtml(report.blockers) : 'No issues.';
   const tomorrow = report.tomorrowPlan ? escapeHtml(report.tomorrowPlan) : 'None';
 
+  let timeBlocksText = '';
+  if (Array.isArray((report as any).timeBlocks) && (report as any).timeBlocks.length > 0) {
+    timeBlocksText = '\n\nActivity & Surfing Breakdown:\n' + (report as any).timeBlocks.map((b: any) => `• [${b.startTime} - ${b.endTime}] ${b.title}${b.details ? ` - ${b.details}` : ''}`).join('\n');
+  }
+
   return `
 <!DOCTYPE html>
 <html>
@@ -314,7 +405,7 @@ Any issues:
 ${issues}
 
 Plan for tomorrow:
-${tomorrow}
+${tomorrow}${timeBlocksText}
 
 Thanks,
 ${escapeHtml(senderName)}
@@ -330,6 +421,8 @@ export async function sendReportEmail({
   managerEmail,
   ccEmails,
   template = 'professional',
+  timelineSessions,
+  timezone
 }: SendReportOptions): Promise<void> {
   const cc = ccEmails ? ccEmails.split(',').map((e) => e.trim()).filter(Boolean) : undefined;
   
@@ -352,7 +445,7 @@ export async function sendReportEmail({
       break;
     case 'professional':
     default:
-      html = renderProfessional(report, senderName);
+      html = renderProfessional(report, senderName, timelineSessions, timezone);
       break;
   }
 

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '@autoeod/db';
+import { DateTime } from 'luxon';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 
@@ -33,8 +34,10 @@ activityLogRouter.get('/', async (req: Request, res: Response) => {
   if (selectedOnly) where.selected = true;
   
   if (date) {
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+    const tz = settings?.timezone || 'UTC';
+    const start = DateTime.fromISO(date, { zone: tz }).startOf('day').toJSDate();
+    const end = DateTime.fromISO(date, { zone: tz }).endOf('day').toJSDate();
     where.tabOpenedAt = { gte: start, lte: end };
   }
 
@@ -99,8 +102,10 @@ activityLogRouter.post('/bulk-select', async (req: Request, res: Response) => {
   const where: any = { userId, promotedToEventId: null };
   if (domain) where.domain = domain;
   if (date) {
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+    const tz = settings?.timezone || 'UTC';
+    const start = DateTime.fromISO(date, { zone: tz }).startOf('day').toJSDate();
+    const end = DateTime.fromISO(date, { zone: tz }).endOf('day').toJSDate();
     where.tabOpenedAt = { gte: start, lte: end };
   }
 
@@ -122,7 +127,9 @@ activityLogRouter.delete('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const dateLimit = new Date(`${beforeDate}T00:00:00.000Z`);
+  const settings = await prisma.userSettings.findUnique({ where: { userId } });
+  const tz = settings?.timezone || 'UTC';
+  const dateLimit = DateTime.fromISO(beforeDate, { zone: tz }).startOf('day').toJSDate();
   const result = await prisma.browserActivityLog.deleteMany({
     where: {
       userId,
@@ -142,8 +149,10 @@ activityLogRouter.post('/promote', async (req: Request, res: Response) => {
   if (ids && Array.isArray(ids)) {
     where.id = { in: ids };
   } else if (date) {
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+    const tz = settings?.timezone || 'UTC';
+    const start = DateTime.fromISO(date, { zone: tz }).startOf('day').toJSDate();
+    const end = DateTime.fromISO(date, { zone: tz }).endOf('day').toJSDate();
     where.tabOpenedAt = { gte: start, lte: end };
   } else {
     res.status(400).json({ error: 'Must provide ids array or a date string' });
