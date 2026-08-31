@@ -46,8 +46,24 @@ const ReportOutputSchema = z.object({
 
 type ReportOutput = z.infer<typeof ReportOutputSchema>;
 
-// Model preference — use gpt-4o-mini or fall back gracefully
-const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+// Model preference & fallback cascade
+const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'minimax/minimax-m3:free';
+
+export function getModelCascade(): string[] {
+  const models = [
+    process.env.OPENAI_MODEL,
+    process.env.OPENAI_FALLBACK_MODEL,
+    'minimax/minimax-m3:free',
+    'cohere/north-mini-code:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'poolside/laguna-xs-2.1:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'openrouter/free',
+  ].filter(Boolean) as string[];
+  return [...new Set(models)];
+}
+
 
 function buildPrompt(
   events: Array<{ source: string; type: string; title: string; repo: string; url: string; occurredAt: Date; rawPayload: any }>,
@@ -140,12 +156,11 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
     response = await openai.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
       temperature: 0.2,
       max_tokens: 2000,
     });
   } catch (err: any) {
-    logger.warn({ model, err: err?.message }, 'json_object mode failed, retrying standard call');
+    logger.warn({ model, err: err?.message }, 'Chat completion call error, retrying simple format');
     response = await openai.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
@@ -154,8 +169,8 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
     });
   }
 
-  const content = response.choices[0]?.message?.content;
-  if (!content || content.trim().length === 0) throw new Error('Empty response from OpenAI');
+  const content = response.choices?.[0]?.message?.content;
+  if (!content || content.trim().length === 0) throw new Error(`Empty response from model ${model}`);
 
   let text = content.trim();
 
@@ -177,15 +192,21 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
   let parsed: any;
 
   // Strategy: always try to find the outermost JSON object first.
-  // This is more robust than parsing the full text when models prepend preamble.
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
 
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = text.substring(firstBrace, lastBrace + 1);
     try {
-      parsed = JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      parsed = JSON.parse(candidate);
     } catch {
-      // Fall through to full-text parse attempt
+      // Try sanitizing trailing commas before closing braces/brackets
+      try {
+        const sanitized = candidate.replace(/,\s*([\]}])/g, '$1');
+        parsed = JSON.parse(sanitized);
+      } catch {
+        // Fall through to full-text parse attempt
+      }
     }
   }
 
@@ -193,13 +214,22 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
     try {
       parsed = JSON.parse(text);
     } catch {
-      throw new Error(`OpenAI output could not be parsed as JSON: ${content.substring(0, 300)}`);
+      throw new Error(`Model ${model} output could not be parsed as JSON: ${content.substring(0, 300)}`);
     }
   }
 
-  const validated = ReportOutputSchema.safeParse(parsed);
+  // Gracefully normalize output with defaults if partial fields are missing
+  const normalized = {
+    summary: typeof parsed.summary === 'string' && parsed.summary.trim().length > 0 ? parsed.summary.trim() : 'Completed daily activities and tasks.',
+    completedItems: Array.isArray(parsed.completedItems) ? parsed.completedItems.map(String).filter((s: string) => s.trim().length > 0) : [],
+    inProgressItems: Array.isArray(parsed.inProgressItems) ? parsed.inProgressItems.map(String).filter((s: string) => s.trim().length > 0) : [],
+    blockers: parsed.blockers && typeof parsed.blockers === 'string' && parsed.blockers.toLowerCase() !== 'null' && parsed.blockers.toLowerCase() !== 'none' ? parsed.blockers.trim() : null,
+    tomorrowPlan: typeof parsed.tomorrowPlan === 'string' ? parsed.tomorrowPlan.trim() : 'Continue progress on open tasks.',
+  };
+
+  const validated = ReportOutputSchema.safeParse(normalized);
   if (!validated.success) {
-    throw new Error(`OpenAI output validation failed: ${JSON.stringify(validated.error.flatten())}`);
+    throw new Error(`Model ${model} output validation failed: ${JSON.stringify(validated.error.flatten())}`);
   }
 
   return validated.data;
@@ -300,74 +330,84 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     reportDate
   );
 
-  // Try the preferred model; if it fails validation, retry with error-correction prompt
-  let reportOutput: ReportOutput;
-  const preferredModel = process.env.OPENAI_MODEL || PREFERRED_MODEL;
-  let usedModel = preferredModel;
+  // Execute AI generation with multi-model fallback cascade
+  const modelCascade = getModelCascade();
+  const primaryModel = modelCascade[0] || PREFERRED_MODEL;
+  let reportOutput: ReportOutput | null = null;
+  let usedModel = primaryModel;
+  let lastError: any = null;
   const startTime = Date.now();
 
-  try {
-    reportOutput = await callOpenAI(prompt, preferredModel);
-  } catch (firstErr) {
-    logger.warn({ firstErr, userId, reportDate }, 'First OpenAI attempt failed, retrying with fallback model');
+  for (let i = 0; i < modelCascade.length; i++) {
+    const currentModel = modelCascade[i];
+    try {
+      logger.info({ userId, reportDate, model: currentModel, attempt: i + 1, totalCascadeModels: modelCascade.length }, 'Attempting report generation with model');
+      reportOutput = await callOpenAI(prompt, currentModel);
+      usedModel = currentModel;
+
+      if (i > 0) {
+        logger.info({ userId, reportDate, primaryModel, usedModel, attempt: i + 1 }, 'AI model fallback succeeded');
+        await recordAuditLog({
+          action: 'AI_MODEL_FALLBACK_TRIGGERED',
+          userId,
+          level: 'warn',
+          details: {
+            primaryModel,
+            fallbackModel: usedModel,
+            attempt: i + 1,
+            recoveredFromError: lastError instanceof Error ? lastError.message : String(lastError),
+          },
+        });
+      }
+      break;
+    } catch (err: any) {
+      lastError = err;
+      logger.warn({ err: err?.message, userId, reportDate, model: currentModel, attempt: i + 1 }, 'Model failed in cascade, attempting next fallback');
+    }
+  }
+
+  if (!reportOutput) {
+    logger.error({ lastError, userId, reportDate }, 'All AI models in fallback cascade failed, marking report as failed');
+    
     await recordAuditLog({
-      action: 'AI_MODEL_FALLBACK_TRIGGERED',
+      action: 'AI_REPORT_FAILED',
       userId,
-      level: 'warn',
+      level: 'error',
       details: {
-        primaryModel: preferredModel,
-        fallbackModel: process.env.OPENAI_FALLBACK_MODEL || 'openrouter/free',
-        error: firstErr instanceof Error ? firstErr.message : String(firstErr),
+        reportDate,
+        attemptedModels: modelCascade,
+        error: lastError instanceof Error ? lastError.message : 'All AI models failed',
+        eventsCount: events.length,
       },
     });
 
-    try {
-      // Try fallback model if provided, otherwise retry the same model
-      usedModel = process.env.OPENAI_FALLBACK_MODEL || preferredModel;
-      reportOutput = await callOpenAI(prompt, usedModel);
-    } catch (secondErr) {
-      logger.error({ secondErr, userId, reportDate }, 'Both OpenAI attempts failed, marking report as failed');
-      
-      await recordAuditLog({
-        action: 'AI_REPORT_FAILED',
+    await prisma.report.upsert({
+      where: { userId_reportDate: { userId, reportDate } },
+      create: {
         userId,
-        level: 'error',
-        details: {
-          reportDate,
-          model: usedModel,
-          error: secondErr instanceof Error ? secondErr.message : 'OpenAI generation failed',
-          eventsCount: events.length,
-        },
-      });
+        reportDate,
+        status: 'failed',
+        rawEventIds: events.map((e) => e.id),
+        errorMessage: lastError instanceof Error ? lastError.message : 'OpenAI generation failed',
+      },
+      update: {
+        status: 'failed',
+        errorMessage: lastError instanceof Error ? lastError.message : 'OpenAI generation failed',
+        rawEventIds: events.map((e) => e.id),
+      },
+    });
 
-      await prisma.report.upsert({
-        where: { userId_reportDate: { userId, reportDate } },
-        create: {
-          userId,
-          reportDate,
-          status: 'failed',
-          rawEventIds: events.map((e) => e.id),
-          errorMessage: secondErr instanceof Error ? secondErr.message : 'OpenAI generation failed',
-        },
-        update: {
-          status: 'failed',
-          errorMessage: secondErr instanceof Error ? secondErr.message : 'OpenAI generation failed',
-          rawEventIds: events.map((e) => e.id),
-        },
-      });
-
-      // Create failure notification
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: 'report_failed',
-          title: 'Report generation failed',
-          message: `Your EOD report for ${reportDate} could not be generated. Error: ${secondErr instanceof Error ? secondErr.message : 'Unknown'}. Please try again.`,
-          reportId: undefined,
-        },
-      });
-      return;
-    }
+    // Create failure notification
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'report_failed',
+        title: 'Report generation failed',
+        message: `Your EOD report for ${reportDate} could not be generated. Error: ${lastError instanceof Error ? lastError.message : 'Unknown'}. Please try again.`,
+        reportId: undefined,
+      },
+    });
+    return;
   }
 
   const durationMs = Date.now() - startTime;

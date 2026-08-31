@@ -510,7 +510,7 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
         {
           action: 'AI_MODEL_INITIALIZED',
           level: 'info',
-          details: JSON.stringify({ provider: 'OpenRouter API', primaryModel: process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free' }),
+          details: JSON.stringify({ provider: 'OpenRouter API', primaryModel: process.env.OPENAI_MODEL || 'minimax/minimax-m3:free' }),
         },
         {
           action: 'REDIS_CONNECTED',
@@ -568,8 +568,8 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
 // ── Models Usage & AI Diagnostics ─────────────────────────────────────────────
 adminRouter.get('/models-usage', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const primaryModel = process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free';
-    const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'openrouter/free';
+    const primaryModel = process.env.OPENAI_MODEL || 'minimax/minimax-m3:free';
+    const fallbackModel = process.env.OPENAI_FALLBACK_MODEL || 'cohere/north-mini-code:free';
     const baseURL = process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1';
 
     // Model breakdown from reports table

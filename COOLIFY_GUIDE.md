@@ -72,8 +72,8 @@ Deploying each component as an independent service is **much lighter, faster to 
 72:    ZOHO_API_DOMAIN=https://mail.zoho.com
 73:    OPENAI_API_KEY=sk-or-v1-your-openrouter-key
 74:    OPENAI_BASE_URL=https://openrouter.ai/api/v1
-75:    OPENAI_MODEL=nvidia/nemotron-3.5-lightning:free
-76:    OPENAI_FALLBACK_MODEL=openrouter/free
+75:    OPENAI_MODEL=minimax/minimax-m3:free
+76:    OPENAI_FALLBACK_MODEL=cohere/north-mini-code:free
 77:    RESEND_API_KEY=re_your-resend-api-key-here
 78:    EMAIL_FROM=AutoEOD <reports@yourdomain.com>
 79:    LOG_LEVEL=info

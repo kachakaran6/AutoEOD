@@ -1137,7 +1137,7 @@ export function AdminPage() {
                 </div>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-sm font-semibold truncate font-mono text-purple-300">
-                    {modelsUsage?.config.primaryModel || 'poolside/laguna-s-2.1:free'}
+                    {modelsUsage?.config.primaryModel || 'minimax/minimax-m3:free'}
                   </span>
                 </div>
                 <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
@@ -1181,7 +1181,7 @@ export function AdminPage() {
                   </span>
                 </div>
                 <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
-                  <span>Fallback: {modelsUsage?.config.fallbackModel || 'openrouter/free'}</span>
+                  <span>Fallback: {modelsUsage?.config.fallbackModel || 'cohere/north-mini-code:free'}</span>
                   <Badge variant="outline" className="text-[9px] py-0 text-emerald-400 border-emerald-500/20">Optimal</Badge>
                 </div>
               </CardContent>
@@ -1248,7 +1248,7 @@ export function AdminPage() {
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Active Architecture
                   </p>
                   <p className="text-muted-foreground text-[11px] leading-relaxed">
-                    Primary inference queries are handled with streaming JSON validation and automated schema repair. If an upstream provider rate limits, requests automatically failover to <code className="bg-muted px-1 py-0.5 rounded text-foreground">{modelsUsage?.config.fallbackModel || 'openrouter/free'}</code>.
+                    Primary inference queries are handled with streaming JSON validation and automated schema repair. If an upstream provider rate limits, requests automatically failover to <code className="bg-muted px-1 py-0.5 rounded text-foreground">{modelsUsage?.config.fallbackModel || 'cohere/north-mini-code:free'}</code>.
                   </p>
                 </div>
               </CardContent>

@@ -214,37 +214,69 @@ Return ONLY a JSON object mapping the 'id' to the generated 'summary' string.
 Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed documentation for React" }
 `;
 
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-    });
+    const candidateModels = [
+      process.env.OPENAI_MODEL,
+      process.env.OPENAI_FALLBACK_MODEL,
+      'minimax/minimax-m3:free',
+      'cohere/north-mini-code:free',
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      'openrouter/free',
+    ].filter(Boolean) as string[];
+    const modelCascade = [...new Set(candidateModels)];
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('Empty response from OpenAI');
+    let summariesMap: Record<string, string> | null = null;
+    let usedModel = modelCascade[0];
+    let lastError: any = null;
 
-    let rawJson = content.trim();
-    if (rawJson.startsWith('```')) {
-      rawJson = rawJson.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```$/, '').trim();
+    for (const model of modelCascade) {
+      try {
+        const response = await openai.chat.completions.create({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+        });
+
+        const content = response.choices?.[0]?.message?.content;
+        if (!content || content.trim().length === 0) throw new Error(`Empty response from model ${model}`);
+
+        let rawJson = content.trim();
+        rawJson = rawJson.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '$1').trim();
+        rawJson = rawJson.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+        const firstBrace = rawJson.indexOf('{');
+        const lastBrace = rawJson.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          const candidate = rawJson.substring(firstBrace, lastBrace + 1);
+          try {
+            summariesMap = JSON.parse(candidate) as Record<string, string>;
+          } catch {
+            try {
+              const sanitized = candidate.replace(/,\s*([\]}])/g, '$1');
+              summariesMap = JSON.parse(sanitized) as Record<string, string>;
+            } catch {}
+          }
+        }
+
+        if (!summariesMap) {
+          summariesMap = JSON.parse(rawJson) as Record<string, string>;
+        }
+
+        usedModel = model;
+        break;
+      } catch (err: any) {
+        lastError = err;
+        logger.warn({ model, err: err?.message }, 'Timeline summary attempt failed, trying fallback');
+      }
     }
 
-    let summariesMap: Record<string, string>;
-    try {
-      summariesMap = JSON.parse(rawJson) as Record<string, string>;
-    } catch (err) {
-      const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        summariesMap = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error(`Failed to parse AI summaries JSON: ${content.substring(0, 200)}`);
-      }
+    if (!summariesMap) {
+      throw new Error(`Failed to generate summaries with all cascade models: ${lastError instanceof Error ? lastError.message : 'Unknown'}`);
     }
 
     for (const [id, summary] of Object.entries(summariesMap)) {
       await prisma.timelineSession.update({
         where: { id },
-        data: { aiSummary: summary }
+        data: { aiSummary: typeof summary === 'string' ? summary : String(summary) }
       });
     }
 
@@ -253,12 +285,12 @@ Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed
       userId,
       level: 'info',
       details: {
-        model: process.env.OPENAI_MODEL || 'poolside/laguna-s-2.1:free',
+        model: usedModel,
         sessionCount: Object.keys(summariesMap).length,
       }
     });
 
-    res.json({ success: true, count: Object.keys(summariesMap).length });
+    res.json({ success: true, count: Object.keys(summariesMap).length, model: usedModel });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate summaries' });
   }
