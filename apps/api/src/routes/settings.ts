@@ -30,6 +30,7 @@ const SettingsSchema = z.object({
   reportLanguage: z.enum(['english', 'hindi', 'gujarati']).optional(),
   chatgptCaptureContent: z.boolean().optional(),
   includeRadarLogs: z.boolean().optional(),
+  includeTimeBlocks: z.boolean().optional(),
   workingDays: z.array(z.number().min(1).max(7)).optional(),
 });
 

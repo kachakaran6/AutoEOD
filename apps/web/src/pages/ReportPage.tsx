@@ -14,8 +14,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Layers,
+  Globe,
+  Tag,
 } from 'lucide-react'
-import { reports } from '@/lib/api'
+import { reports, type TimeBlock } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,6 +47,7 @@ export function ReportPage() {
   const [inProgressItems, setInProgressItems] = useState<string[]>([])
   const [blockers, setBlockers] = useState('')
   const [tomorrowPlan, setTomorrowPlan] = useState('')
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([])
 
   // Sync form with fetched report
   useEffect(() => {
@@ -53,6 +57,7 @@ export function ReportPage() {
       setInProgressItems(report.inProgressItems || [])
       setBlockers(report.blockers || '')
       setTomorrowPlan(report.tomorrowPlan || '')
+      setTimeBlocks(report.timeBlocks || [])
     }
   }, [report])
 
@@ -64,6 +69,7 @@ export function ReportPage() {
         inProgressItems,
         blockers: blockers || null,
         tomorrowPlan,
+        timeBlocks: timeBlocks.length > 0 ? timeBlocks : null,
       }),
     onSuccess: () => {
       toast.success('Report saved')
@@ -365,6 +371,140 @@ export function ReportPage() {
             />
           </CardContent>
         </Card>
+
+        {/* Time-Bracketed Activity & Surfing Breakdown */}
+        {timeBlocks.length > 0 && (
+          <Card className="border-primary/20 bg-gradient-to-b from-card to-primary/[0.02]">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-primary" />
+                    ⏱️ Activity & Surfing Breakdown
+                  </CardTitle>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Collaborated</span>
+                </div>
+                {!isSent && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setTimeBlocks([
+                        ...timeBlocks,
+                        {
+                          startTime: '09:00',
+                          endTime: '10:00',
+                          title: '',
+                          category: 'work',
+                          details: '',
+                          toolsAndWebsites: [],
+                        },
+                      ])
+                    }
+                    id="btn-add-timeblock"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Block
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {timeBlocks.map((block, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-lg border border-border/80 bg-background p-3.5 space-y-2.5 shadow-sm transition-all"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={block.startTime}
+                        onChange={(e) => {
+                          const updated = [...timeBlocks]
+                          updated[idx] = { ...updated[idx], startTime: e.target.value }
+                          setTimeBlocks(updated)
+                        }}
+                        disabled={isSent}
+                        placeholder="09:00"
+                        className="h-7 w-20 text-xs font-mono text-center font-semibold"
+                      />
+                      <span className="text-xs text-muted-foreground font-mono">–</span>
+                      <Input
+                        value={block.endTime}
+                        onChange={(e) => {
+                          const updated = [...timeBlocks]
+                          updated[idx] = { ...updated[idx], endTime: e.target.value }
+                          setTimeBlocks(updated)
+                        }}
+                        disabled={isSent}
+                        placeholder="10:30"
+                        className="h-7 w-20 text-xs font-mono text-center font-semibold"
+                      />
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-wide font-medium bg-primary/10 text-primary hover:bg-primary/15"
+                      >
+                        {block.category || 'work'}
+                      </Badge>
+                    </div>
+
+                    {!isSent && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setTimeBlocks(timeBlocks.filter((_, j) => j !== idx))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <Input
+                    value={block.title}
+                    onChange={(e) => {
+                      const updated = [...timeBlocks]
+                      updated[idx] = { ...updated[idx], title: e.target.value }
+                      setTimeBlocks(updated)
+                    }}
+                    disabled={isSent}
+                    placeholder="Work title / focus area..."
+                    className="font-medium text-sm"
+                  />
+
+                  {(!isSent || block.details) && (
+                    <Textarea
+                      value={block.details || ''}
+                      onChange={(e) => {
+                        const updated = [...timeBlocks]
+                        updated[idx] = { ...updated[idx], details: e.target.value }
+                        setTimeBlocks(updated)
+                      }}
+                      disabled={isSent}
+                      placeholder="Details of what was accomplished or researched..."
+                      rows={2}
+                      className="text-xs resize-none"
+                    />
+                  )}
+
+                  {block.toolsAndWebsites && block.toolsAndWebsites.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {block.toolsAndWebsites.map((tool, tIdx) => (
+                        <span
+                          key={tIdx}
+                          className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                        >
+                          <Globe className="h-2.5 w-2.5 opacity-60" />
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Action buttons */}

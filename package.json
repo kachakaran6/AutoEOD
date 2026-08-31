@@ -22,5 +22,11 @@
     "db:migrate:deploy": "npm run migrate:deploy --workspace=packages/db",
     "db:generate": "npm run generate --workspace=packages/db",
     "db:studio": "npm run studio --workspace=packages/db"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
   }
 }

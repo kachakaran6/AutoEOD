@@ -51,6 +51,7 @@ model UserSettings {
   reportLanguage String  @default("english") // "english" | "hindi" | "gujarati"
   chatgptCaptureContent Boolean @default(false)
   includeRadarLogs Boolean @default(false)
+  includeTimeBlocks Boolean @default(false)
   workingDays      Int[]   @default([1, 2, 3, 4, 5]) // 1=Mon, 7=Sun
 
   updatedAt DateTime @updatedAt
@@ -128,6 +129,7 @@ model Report {
   inProgressItems Json? // string[]
   blockers        String? @db.Text
   tomorrowPlan    String? @db.Text
+  timeBlocks      Json? // Array of collaborated time-blocks { startTime, endTime, title, category, details, toolsAndWebsites }
 
   rawEventIds  Json // string[] of ActivityEvent.id used to generate this report
   aiModel      String? // model name used, for audit

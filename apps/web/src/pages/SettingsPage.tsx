@@ -297,6 +297,21 @@ export function SettingsPage() {
               onCheckedChange={(v) => updateField('includeRadarLogs', v)}
             />
           </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-primary/30 p-4 bg-primary/5">
+            <div className="space-y-0.5 pr-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="setting-include-timeblocks" className="text-sm font-medium">Time-Bracketed Activity & Surfing Breakdown</Label>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">Supreme</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Collaborates your Git activity, web surfing logs, and desktop work into chronological time brackets (e.g. 09:00–10:30: Surfed docs.openrouter.ai & implemented AI fallback)</p>
+            </div>
+            <Switch
+              id="setting-include-timeblocks"
+              checked={form.includeTimeBlocks ?? false}
+              onCheckedChange={(v) => updateField('includeTimeBlocks', v)}
+            />
+          </div>
         </CardContent>
       </Card>
 

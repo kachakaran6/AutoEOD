@@ -207,6 +207,15 @@ export interface ActivityResponse {
   events: ActivityEvent[];
 }
 
+export interface TimeBlock {
+  startTime: string;
+  endTime: string;
+  title: string;
+  category?: string;
+  details?: string;
+  toolsAndWebsites?: string[];
+}
+
 export interface Report {
   id: string;
   userId: string;
@@ -217,6 +226,7 @@ export interface Report {
   inProgressItems: string[] | null;
   blockers: string | null;
   tomorrowPlan: string | null;
+  timeBlocks?: TimeBlock[] | null;
   aiModel: string | null;
   generatedAt: string | null;
   sentAt: string | null;
@@ -242,6 +252,7 @@ export interface ReportEditData {
   inProgressItems: string[];
   blockers: string | null;
   tomorrowPlan: string;
+  timeBlocks?: TimeBlock[] | null;
 }
 
 export interface IntegrationsData {
@@ -273,6 +284,7 @@ export interface UserSettings {
   reportLanguage: string;
   chatgptCaptureContent?: boolean;
   includeRadarLogs?: boolean;
+  includeTimeBlocks?: boolean;
   emailConnection?: EmailConnection | null;
 }
 

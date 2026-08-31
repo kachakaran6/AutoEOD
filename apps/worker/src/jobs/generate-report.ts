@@ -36,12 +36,24 @@ function getOpenAI(): OpenAI {
 }
 
 // Zod schema for AI output validation
+const TimeBlockSchema = z.object({
+  startTime: z.string(),
+  endTime: z.string(),
+  title: z.string(),
+  category: z.string().default('work'),
+  details: z.string().default(''),
+  toolsAndWebsites: z.array(z.string()).default([]),
+});
+
+export type TimeBlock = z.infer<typeof TimeBlockSchema>;
+
 const ReportOutputSchema = z.object({
   summary: z.string().min(1).max(2000),
   completedItems: z.array(z.string()).max(100),
   inProgressItems: z.array(z.string()).max(100),
   blockers: z.string().nullable(),
   tomorrowPlan: z.string().max(1000),
+  timeBlocks: z.array(TimeBlockSchema).optional().nullable(),
 });
 
 type ReportOutput = z.infer<typeof ReportOutputSchema>;
@@ -67,7 +79,7 @@ export function getModelCascade(): string[] {
 
 function buildPrompt(
   events: Array<{ source: string; type: string; title: string; repo: string; url: string; occurredAt: Date; rawPayload: any }>,
-  settings: { reportTemplate: string; reportLanguage: string; workStartTime: string; workEndTime: string },
+  settings: { reportTemplate: string; reportLanguage: string; workStartTime: string; workEndTime: string; includeTimeBlocks?: boolean },
   reportDate: string
 ): string {
   const toneMap: Record<string, string> = {
@@ -90,7 +102,7 @@ function buildPrompt(
     events.length === 0
       ? 'No activity was recorded today.'
       : events
-          .map((e, i) => {
+          .map((e) => {
             // Highly compressed format to save tokens while keeping ALL events
             const time = DateTime.fromJSDate(e.occurredAt).toFormat('HH:mm');
             let desc = `[${time}] ${e.source.toUpperCase()}: ${e.title}`;
@@ -116,6 +128,46 @@ function buildPrompt(
     eventsText = eventsText.substring(0, 40000) + '\n\n...[TRUNCATED]...';
   }
 
+  const timeBlockInstructions = settings.includeTimeBlocks
+    ? `
+10. Time-Block Chronological Activity & Surfing Breakdown:
+Because Time-Block Breakdown is ENABLED, synthesize the day's activity into 3 to 8 logical chronological time brackets spanning from work start to work end.
+For each time bracket, collaborate GitHub commits/PRs, web surfing logs, and desktop window sessions:
+- "startTime": e.g. "09:00"
+- "endTime": e.g. "10:30"
+- "title": Concise 1-line title of the primary work or focus area (e.g. "Core AI Model Fallback Architecture & Development")
+- "category": One of "development", "research", "browsing", "review", "debugging", "meeting", "planning", "work"
+- "details": 1-2 sentences describing what was accomplished, researched, or surfed during this time block
+- "toolsAndWebsites": Array of key tools, repos, or websites visited (e.g. ["docs.openrouter.ai", "github.com", "VS Code"])
+
+Return a JSON object with this exact structure:
+{
+  "summary": "string — 2-3 sentences summarizing my day",
+  "completedItems": ["string", ...],
+  "inProgressItems": ["string", ...],
+  "blockers": "string or null",
+  "tomorrowPlan": "string — what I plan to do tomorrow",
+  "timeBlocks": [
+    {
+      "startTime": "09:00",
+      "endTime": "10:30",
+      "title": "Title of time block",
+      "category": "development",
+      "details": "Details of work / browsing done",
+      "toolsAndWebsites": ["website.com", "tool"]
+    }
+  ]
+}`
+    : `
+Return a JSON object with exactly this structure:
+{
+  "summary": "string — 2-3 sentences summarizing my day",
+  "completedItems": ["string", ...],
+  "inProgressItems": ["string", ...],
+  "blockers": "string or null",
+  "tomorrowPlan": "string — what I plan to do tomorrow"
+}`;
+
   return `You are an AI assistant that drafts daily EOD (End-of-Day) work reports on behalf of a software engineer.
 
 Today's date: ${reportDate}
@@ -137,15 +189,7 @@ Instructions:
 7. Leave "blockers" as null if nothing in the events suggests a blocker. Never invent a blocker.
 8. Write "tomorrowPlan" as a reasonable inference from open/in-progress items. Frame it as what I plan to do tomorrow.
 9. If no activity was recorded, set summary to "No tracked activity today." and leave completedItems and inProgressItems empty.
-
-Return a JSON object with exactly this structure:
-{
-  "summary": "string — 2-3 sentences summarizing my day",
-  "completedItems": ["string", ...],
-  "inProgressItems": ["string", ...],
-  "blockers": "string or null",
-  "tomorrowPlan": "string — what I plan to do tomorrow"
-}`;
+${timeBlockInstructions}`;
 }
 
 async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> {
@@ -225,6 +269,18 @@ async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> 
     inProgressItems: Array.isArray(parsed.inProgressItems) ? parsed.inProgressItems.map(String).filter((s: string) => s.trim().length > 0) : [],
     blockers: parsed.blockers && typeof parsed.blockers === 'string' && parsed.blockers.toLowerCase() !== 'null' && parsed.blockers.toLowerCase() !== 'none' ? parsed.blockers.trim() : null,
     tomorrowPlan: typeof parsed.tomorrowPlan === 'string' ? parsed.tomorrowPlan.trim() : 'Continue progress on open tasks.',
+    timeBlocks: Array.isArray(parsed.timeBlocks)
+      ? parsed.timeBlocks
+          .map((b: any) => ({
+            startTime: String(b?.startTime || '').trim(),
+            endTime: String(b?.endTime || '').trim(),
+            title: String(b?.title || '').trim(),
+            category: String(b?.category || 'work').toLowerCase().trim(),
+            details: String(b?.details || '').trim(),
+            toolsAndWebsites: Array.isArray(b?.toolsAndWebsites) ? b.toolsAndWebsites.map(String).filter(Boolean) : [],
+          }))
+          .filter((b: any) => b.startTime && b.endTime && b.title)
+      : undefined,
   };
 
   const validated = ReportOutputSchema.safeParse(normalized);
@@ -317,6 +373,68 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     }
   }
 
+  if ((settings as any).includeTimeBlocks) {
+    // Fetch timeline sessions if any
+    const timelineSessions = await prisma.timelineSession.findMany({
+      where: {
+        userId,
+        startTime: {
+          gte: dayStart.toJSDate(),
+          lte: dayEnd.toJSDate(),
+        },
+        selected: true,
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    for (const session of timelineSessions) {
+      const durMins = Math.round(session.durationSeconds / 60);
+      events.push({
+        id: `timeline-${session.id}`,
+        source: 'desktop',
+        type: 'window_session',
+        title: `Used ${session.appName}${session.windowTitle ? ` (${session.windowTitle})` : ''}${session.aiSummary ? ` - ${session.aiSummary}` : ''} [${durMins}m]`,
+        repo: session.project || '',
+        url: '',
+        occurredAt: session.startTime,
+        rawPayload: { durationSeconds: session.durationSeconds, appName: session.appName, windowTitle: session.windowTitle, aiSummary: session.aiSummary }
+      });
+    }
+
+    // Also fetch detailed browser logs if not already included via Radar
+    if (!(settings as any).includeRadarLogs) {
+      const browserLogs = await prisma.browserActivityLog.findMany({
+        where: {
+          userId,
+          tabOpenedAt: {
+            gte: dayStart.toJSDate(),
+            lte: dayEnd.toJSDate(),
+          },
+          durationSeconds: { gte: 30 },
+        },
+        orderBy: { tabOpenedAt: 'asc' },
+      });
+
+      for (const log of browserLogs) {
+        const mins = Math.floor(log.durationSeconds / 60);
+        const secs = log.durationSeconds % 60;
+        events.push({
+          id: `browser-${log.id}`,
+          source: 'browser',
+          type: 'tab_visit',
+          title: `Surfed ${log.domain} (${mins}m ${secs}s) - ${log.pageTitle}`,
+          repo: '',
+          url: log.url,
+          occurredAt: log.tabOpenedAt,
+          rawPayload: { durationSeconds: log.durationSeconds, domain: log.domain, pageTitle: log.pageTitle }
+        });
+      }
+    }
+  }
+
+  // Sort events chronologically
+  events.sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+
   logger.info({ userId, reportDate, eventCount: events.length }, 'Events fetched for report');
 
   const prompt = buildPrompt(
@@ -326,6 +444,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
       reportLanguage: settings.reportLanguage,
       workStartTime: settings.workStartTime,
       workEndTime: settings.workEndTime,
+      includeTimeBlocks: (settings as any).includeTimeBlocks ?? false,
     },
     reportDate
   );
@@ -424,6 +543,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
       inProgressItems: reportOutput.inProgressItems,
       blockers: reportOutput.blockers,
       tomorrowPlan: reportOutput.tomorrowPlan,
+      timeBlocks: (reportOutput.timeBlocks as any) || null,
       rawEventIds: events.map((e) => e.id),
       aiModel: usedModel,
       generatedAt: new Date(),
@@ -435,6 +555,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
       inProgressItems: reportOutput.inProgressItems,
       blockers: reportOutput.blockers,
       tomorrowPlan: reportOutput.tomorrowPlan,
+      timeBlocks: (reportOutput.timeBlocks as any) || null,
       rawEventIds: events.map((e) => e.id),
       aiModel: usedModel,
       generatedAt: new Date(),

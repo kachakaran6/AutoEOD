@@ -62,6 +62,7 @@ const PatchReportSchema = z.object({
   inProgressItems: z.array(z.string()).optional(),
   blockers: z.string().nullable().optional(),
   tomorrowPlan: z.string().optional(),
+  timeBlocks: z.any().optional(),
 });
 
 reportsRouter.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
