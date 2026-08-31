@@ -64,16 +64,223 @@ const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'minimax/minimax-m3:free';
 export function getModelCascade(): string[] {
   const models = [
     process.env.OPENAI_MODEL,
-    process.env.OPENAI_FALLBACK_MODEL,
     'minimax/minimax-m3:free',
-    'cohere/north-mini-code:free',
-    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'poolside/laguna-xs-2.1:free',
-    'nvidia/nemotron-3.5-lightning:free',
+    'minimax/minimax-m2.7:free',
     'openrouter/free',
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'z-ai/glm-5.2:free',
+    'cohere/north-mini-code:free',
+    process.env.OPENAI_FALLBACK_MODEL,
   ].filter(Boolean) as string[];
   return [...new Set(models)];
+}
+
+function repairAndParseJson(raw: string): any {
+  let text = raw.trim();
+
+  // Strip markdown code fences
+  text = text.replace(/```(?:json)?\s*([\s\S]*?)\s*(?:```|$)/gi, '$1').trim();
+
+  // Strip <think>...</think> blocks
+  text = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '').trim();
+
+  // Strip common reasoning preamble before first {
+  const firstBrace = text.indexOf('{');
+  if (firstBrace !== -1) {
+    text = text.substring(firstBrace);
+  }
+
+  // 1. Try standard parse
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  // 2. Try sanitize trailing commas
+  try {
+    const sanitized = text.replace(/,\s*([\]}])/g, '$1');
+    return JSON.parse(sanitized);
+  } catch {}
+
+  // 3. Try balancing unclosed strings, arrays, and objects
+  try {
+    let balanced = text;
+    // Check if inside open string
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < balanced.length; i++) {
+      const ch = balanced[i];
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = !inString;
+      }
+    }
+    if (inString) {
+      balanced += '"';
+    }
+
+    // Count open { and [
+    let openBraces = 0;
+    let openBrackets = 0;
+    inString = false;
+    escaped = false;
+    for (let i = 0; i < balanced.length; i++) {
+      const ch = balanced[i];
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = !inString;
+      } else if (!inString) {
+        if (ch === '{') openBraces++;
+        else if (ch === '}') openBraces = Math.max(0, openBraces - 1);
+        else if (ch === '[') openBrackets++;
+        else if (ch === ']') openBrackets = Math.max(0, openBrackets - 1);
+      }
+    }
+
+    // Append closing brackets and braces
+    while (openBrackets > 0) {
+      balanced += ']';
+      openBrackets--;
+    }
+    while (openBraces > 0) {
+      balanced += '}';
+      openBraces--;
+    }
+
+    // Sanitize trailing commas again
+    balanced = balanced.replace(/,\s*([\]}])/g, '$1');
+    return JSON.parse(balanced);
+  } catch {}
+
+  // 4. Fallback regex extraction of fields from truncated outputs
+  const extracted: any = {};
+  const summaryMatch = text.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (summaryMatch) {
+    extracted.summary = summaryMatch[1].replace(/\\"/g, '"');
+  }
+
+  const completedMatch = text.match(/"completedItems"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+  if (completedMatch) {
+    const items = [...completedMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1].replace(/\\"/g, '"'));
+    if (items.length > 0) extracted.completedItems = items;
+  }
+
+  const inProgressMatch = text.match(/"inProgressItems"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+  if (inProgressMatch) {
+    const items = [...inProgressMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1].replace(/\\"/g, '"'));
+    if (items.length > 0) extracted.inProgressItems = items;
+  }
+
+  const tomorrowMatch = text.match(/"tomorrowPlan"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (tomorrowMatch) {
+    extracted.tomorrowPlan = tomorrowMatch[1].replace(/\\"/g, '"');
+  }
+
+  const blockersMatch = text.match(/"blockers"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|null)/);
+  if (blockersMatch) {
+    extracted.blockers = blockersMatch[1] ? blockersMatch[1].replace(/\\"/g, '"') : null;
+  }
+
+  // Extract any completed timeBlocks
+  const timeBlocksMatch = text.match(/"timeBlocks"\s*:\s*\[([\s\S]*)/);
+  if (timeBlocksMatch) {
+    const blocks: any[] = [];
+    const blockMatches = timeBlocksMatch[1].matchAll(/\{[\s\S]*?"startTime"\s*:\s*"([^"]+)"[\s\S]*?"endTime"\s*:\s*"([^"]+)"[\s\S]*?"title"\s*:\s*"([^"]+)"([\s\S]*?)\}/g);
+    for (const bm of blockMatches) {
+      const catMatch = bm[4].match(/"category"\s*:\s*"([^"]+)"/);
+      const detMatch = bm[4].match(/"details"\s*:\s*"([^"]+)"/);
+      const toolsMatch = bm[4].match(/"toolsAndWebsites"\s*:\s*\[([\s\S]*?)\]/);
+      const tools = toolsMatch ? [...toolsMatch[1].matchAll(/"([^"]+)"/g)].map((t) => t[1]) : [];
+      blocks.push({
+        startTime: bm[1],
+        endTime: bm[2],
+        title: bm[3],
+        category: catMatch ? catMatch[1] : 'work',
+        details: detMatch ? detMatch[1] : '',
+        toolsAndWebsites: tools,
+      });
+    }
+    if (blocks.length > 0) {
+      extracted.timeBlocks = blocks;
+    }
+  }
+
+  if (Object.keys(extracted).length > 0) {
+    return extracted;
+  }
+
+  return null;
+}
+
+async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> {
+  const openai = getOpenAI();
+  let response: any;
+
+  try {
+    response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: 'You are an AI assistant that drafts daily EOD reports. You MUST return ONLY a valid JSON object matching the requested schema without markdown wrapping.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 3500,
+    });
+  } catch (err: any) {
+    logger.warn({ model, err: err?.message }, 'Chat completion call error, retrying simple format');
+    response = await openai.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.1,
+      max_tokens: 3500,
+    });
+  }
+
+  const content = response.choices?.[0]?.message?.content;
+  if (!content || content.trim().length === 0) throw new Error(`Empty response from model ${model}`);
+
+  const parsed = repairAndParseJson(content);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`Model ${model} output could not be parsed as JSON: ${content.substring(0, 300)}`);
+  }
+
+  // Gracefully normalize output with defaults if partial fields are missing
+  const normalized = {
+    summary: typeof parsed.summary === 'string' && parsed.summary.trim().length > 0 ? parsed.summary.trim() : 'Completed daily activities and tasks.',
+    completedItems: Array.isArray(parsed.completedItems) && parsed.completedItems.length > 0
+      ? parsed.completedItems.map(String).filter((s: string) => s.trim().length > 0)
+      : typeof parsed.summary === 'string' && parsed.summary.trim().length > 0 ? [parsed.summary.trim()] : ['Progressed on daily tasks and development.'],
+    inProgressItems: Array.isArray(parsed.inProgressItems) ? parsed.inProgressItems.map(String).filter((s: string) => s.trim().length > 0) : [],
+    blockers: parsed.blockers && typeof parsed.blockers === 'string' && parsed.blockers.toLowerCase() !== 'null' && parsed.blockers.toLowerCase() !== 'none' ? parsed.blockers.trim() : null,
+    tomorrowPlan: typeof parsed.tomorrowPlan === 'string' ? parsed.tomorrowPlan.trim() : 'Continue progress on open tasks.',
+    timeBlocks: Array.isArray(parsed.timeBlocks)
+      ? parsed.timeBlocks
+          .map((b: any) => ({
+            startTime: String(b?.startTime || '').trim(),
+            endTime: String(b?.endTime || '').trim(),
+            title: String(b?.title || '').trim(),
+            category: String(b?.category || 'work').toLowerCase().trim(),
+            details: String(b?.details || '').trim(),
+            toolsAndWebsites: Array.isArray(b?.toolsAndWebsites) ? b.toolsAndWebsites.map(String).filter(Boolean) : [],
+          }))
+          .filter((b: any) => b.startTime && b.endTime && b.title)
+          .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime))
+      : undefined,
+  };
+
+  const validated = ReportOutputSchema.safeParse(normalized);
+  if (!validated.success) {
+    throw new Error(`Model ${model} output validation failed: ${JSON.stringify(validated.error.flatten())}`);
+  }
+
+  return validated.data;
 }
 
 
@@ -223,106 +430,6 @@ Instructions:
 ${timeBlockInstructions}`;
 }
 
-async function callOpenAI(prompt: string, model: string): Promise<ReportOutput> {
-  const openai = getOpenAI();
-  let response: any;
-
-  try {
-    response = await openai.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      max_tokens: 2000,
-    });
-  } catch (err: any) {
-    logger.warn({ model, err: err?.message }, 'Chat completion call error, retrying simple format');
-    response = await openai.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      max_tokens: 2000,
-    });
-  }
-
-  const content = response.choices?.[0]?.message?.content;
-  if (!content || content.trim().length === 0) throw new Error(`Empty response from model ${model}`);
-
-  let text = content.trim();
-
-  // Strip markdown code fences
-  text = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '$1').trim();
-
-  // Strip <think>...</think> blocks (some reasoning models)
-  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-
-  // Strip common reasoning model preamble patterns BEFORE extracting JSON.
-  // Models like nvidia/nemotron output "Here's a thinking process:" or
-  // "Here's my reasoning:" etc. before the actual JSON object.
-  text = text.replace(/^(?:[\s\S]*?)(?=\{)/m, (match: string) => {
-    // Only strip if the match looks like a preamble (not starting with '{' itself)
-    if (!match.startsWith('{')) return '';
-    return match;
-  });
-
-  let parsed: any;
-
-  // Strategy: always try to find the outermost JSON object first.
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const candidate = text.substring(firstBrace, lastBrace + 1);
-    try {
-      parsed = JSON.parse(candidate);
-    } catch {
-      // Try sanitizing trailing commas before closing braces/brackets
-      try {
-        const sanitized = candidate.replace(/,\s*([\]}])/g, '$1');
-        parsed = JSON.parse(sanitized);
-      } catch {
-        // Fall through to full-text parse attempt
-      }
-    }
-  }
-
-  if (!parsed) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new Error(`Model ${model} output could not be parsed as JSON: ${content.substring(0, 300)}`);
-    }
-  }
-
-  // Gracefully normalize output with defaults if partial fields are missing
-  const normalized = {
-    summary: typeof parsed.summary === 'string' && parsed.summary.trim().length > 0 ? parsed.summary.trim() : 'Completed daily activities and tasks.',
-    completedItems: Array.isArray(parsed.completedItems) ? parsed.completedItems.map(String).filter((s: string) => s.trim().length > 0) : [],
-    inProgressItems: Array.isArray(parsed.inProgressItems) ? parsed.inProgressItems.map(String).filter((s: string) => s.trim().length > 0) : [],
-    blockers: parsed.blockers && typeof parsed.blockers === 'string' && parsed.blockers.toLowerCase() !== 'null' && parsed.blockers.toLowerCase() !== 'none' ? parsed.blockers.trim() : null,
-    tomorrowPlan: typeof parsed.tomorrowPlan === 'string' ? parsed.tomorrowPlan.trim() : 'Continue progress on open tasks.',
-    timeBlocks: Array.isArray(parsed.timeBlocks)
-      ? parsed.timeBlocks
-          .map((b: any) => ({
-            startTime: String(b?.startTime || '').trim(),
-            endTime: String(b?.endTime || '').trim(),
-            title: String(b?.title || '').trim(),
-            category: String(b?.category || 'work').toLowerCase().trim(),
-            details: String(b?.details || '').trim(),
-            toolsAndWebsites: Array.isArray(b?.toolsAndWebsites) ? b.toolsAndWebsites.map(String).filter(Boolean) : [],
-          }))
-          .filter((b: any) => b.startTime && b.endTime && b.title)
-          .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime))
-      : undefined,
-  };
-
-  const validated = ReportOutputSchema.safeParse(normalized);
-  if (!validated.success) {
-    throw new Error(`Model ${model} output validation failed: ${JSON.stringify(validated.error.flatten())}`);
-  }
-
-  return validated.data;
-}
-
 export interface GenerateReportJobData {
   userId: string;
   reportDate: string;
@@ -421,10 +528,15 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
         ? new Date(log.tabClosedAt) 
         : new Date(logStart.getTime() + Math.max(log.durationSeconds, 5) * 1000);
 
-      // Find an active cluster for the same domain that ended recently
-      const matchingCluster = clusters.find(
-        (c) => c.domain === log.domain && (logStart.getTime() - c.endTime.getTime() <= SESSION_GAP_MS)
-      );
+      // Find the most recent active cluster for the same domain that ended recently
+      const matchingCluster = clusters
+        .filter((c) => c.domain === log.domain)
+        .reverse()
+        .find(
+          (c) =>
+            Math.abs(logStart.getTime() - c.endTime.getTime()) <= SESSION_GAP_MS ||
+            (logStart.getTime() >= c.startTime.getTime() && logStart.getTime() <= c.endTime.getTime() + SESSION_GAP_MS)
+        );
 
       if (matchingCluster) {
         if (logEnd > matchingCluster.endTime) {
