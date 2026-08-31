@@ -7,68 +7,45 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
+import { timeline as timelineApi, type TimelineSessionItem } from '@/lib/api';
+
 export function MinuteTimeline({ date }: { date: string }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editSummary, setEditSummary] = useState('');
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading } = useQuery<TimelineSessionItem[]>({
     queryKey: ['timeline', date],
-    queryFn: async () => {
-      const res = await fetch(`/api/timeline?date=${date}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch timeline');
-      return res.json();
-    }
+    queryFn: () => timelineApi.list(date),
   });
 
   const generateMut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/timeline/generate-summaries', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error('Failed to generate summaries');
-      return res.json();
-    },
+    mutationFn: () => timelineApi.generateSummaries(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline', date] });
       toast.success('AI Summaries generated');
-    }
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const updateMut = useMutation({
-    mutationFn: async ({ id, data }: { id: string, data: any }) => {
-      const res = await fetch(`/api/timeline/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error('Failed to update session');
-      return res.json();
-    },
+    mutationFn: ({ id, data }: { id: string; data: any }) => timelineApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline', date] });
       setEditingId(null);
       toast.success('Session updated');
-    }
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/timeline/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error('Failed to delete session');
-      return res.json();
-    },
+    mutationFn: (id: string) => timelineApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline', date] });
       toast.success('Session deleted');
-    }
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const handleExport = (formatType: string) => {

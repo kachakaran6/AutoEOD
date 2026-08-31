@@ -7,34 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-// API helpers
-const fetchHolidays = async () => {
-  const res = await fetch('/api/holidays', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
-  if (!res.ok) throw new Error('Failed to fetch holidays');
-  return res.json();
-};
-const addHoliday = async (data: { date: string, name: string }) => {
-  const res = await fetch('/api/holidays', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Failed to add holiday');
-  return res.json();
-};
-const deleteHoliday = async (id: string) => {
-  const res = await fetch(`/api/holidays/${id}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  });
-  if (!res.ok) throw new Error('Failed to delete holiday');
-  return res.json();
-};
-const fetchSkipLogs = async () => {
-  const res = await fetch('/api/holidays/skip-logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
-  if (!res.ok) throw new Error('Failed to fetch skip logs');
-  return res.json();
-};
+import { holidays as holidaysApi, type Holiday, type ReportSkipLog } from '@/lib/api';
 
 const DAYS = [
   { id: 1, label: 'Monday' },
@@ -51,11 +24,11 @@ export function WorkingSchedule({ workingDays = [1,2,3,4,5], onChange }: { worki
   const [newHolidayName, setNewHolidayName] = useState('');
   const [newHolidayDate, setNewHolidayDate] = useState('');
 
-  const { data: holidays = [] } = useQuery({ queryKey: ['holidays'], queryFn: fetchHolidays });
-  const { data: skipLogs = [] } = useQuery({ queryKey: ['skipLogs'], queryFn: fetchSkipLogs });
+  const { data: holidays = [] } = useQuery<Holiday[]>({ queryKey: ['holidays'], queryFn: holidaysApi.list });
+  const { data: skipLogs = [] } = useQuery<ReportSkipLog[]>({ queryKey: ['skipLogs'], queryFn: holidaysApi.getSkipLogs });
 
   const addMut = useMutation({
-    mutationFn: addHoliday,
+    mutationFn: (data: { date: string; name: string }) => holidaysApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       setNewHolidayName('');
@@ -66,7 +39,7 @@ export function WorkingSchedule({ workingDays = [1,2,3,4,5], onChange }: { worki
   });
 
   const delMut = useMutation({
-    mutationFn: deleteHoliday,
+    mutationFn: (id: string) => holidaysApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       toast.success('Holiday removed');

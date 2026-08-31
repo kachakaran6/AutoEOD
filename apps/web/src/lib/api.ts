@@ -6,29 +6,61 @@ export const BASE_URL = envApiUrl
   ? (envApiUrl.endsWith('/api') ? envApiUrl.replace(/\/$/, '') : `${envApiUrl.replace(/\/$/, '')}/api`)
   : '/api';
 
-let accessToken: string | null = null;
+const TOKEN_KEY = 'autoeod_access_token';
+
+let accessToken: string | null =
+  typeof window !== 'undefined'
+    ? localStorage.getItem(TOKEN_KEY) || localStorage.getItem('token')
+    : null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('token');
+    }
+  }
 }
 
 export function getAccessToken(): string | null {
+  if (!accessToken && typeof window !== 'undefined') {
+    accessToken = localStorage.getItem(TOKEN_KEY) || localStorage.getItem('token');
+  }
   return accessToken;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
 async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    setAccessToken(data.accessToken);
-    return data.accessToken;
-  } catch {
-    return null;
+  if (refreshPromise) {
+    return refreshPromise;
   }
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        setAccessToken(null);
+        return null;
+      }
+      const data = await res.json();
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 interface RequestOptions extends RequestInit {
@@ -399,6 +431,67 @@ export const activityLog = {
     apiRequest<{ promotedCount: number }>('/activity-log/promote', {
       method: 'POST',
       body: JSON.stringify({ date, ids }),
+    }),
+};
+
+// ── Holidays & PTO ─────────────────────────────────────────────────────────────
+export interface Holiday {
+  id: string;
+  userId: string;
+  date: string;
+  name: string;
+}
+
+export interface ReportSkipLog {
+  id: string;
+  userId: string;
+  date: string;
+  reason: string;
+  createdAt: string;
+}
+
+export const holidays = {
+  list: () => apiRequest<Holiday[]>('/holidays'),
+  create: (data: { date: string; name: string }) =>
+    apiRequest<Holiday>('/holidays', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiRequest<{ success: boolean }>(`/holidays/${id}`, {
+      method: 'DELETE',
+    }),
+  getSkipLogs: () => apiRequest<ReportSkipLog[]>('/holidays/skip-logs'),
+};
+
+// ── Timeline Sessions ──────────────────────────────────────────────────────────
+export interface TimelineSessionItem {
+  id: string;
+  startTime: string;
+  endTime: string;
+  durationSeconds: number;
+  appName: string;
+  windowTitle?: string | null;
+  project?: string | null;
+  detectedTask?: string | null;
+  aiSummary?: string | null;
+  selected: boolean;
+}
+
+export const timeline = {
+  list: (date: string) => apiRequest<TimelineSessionItem[]>(`/timeline?date=${date}`),
+  generateSummaries: () =>
+    apiRequest<{ count: number; usedModel?: string }>('/timeline/generate-summaries', {
+      method: 'POST',
+    }),
+  update: (id: string, data: { windowTitle?: string; aiSummary?: string; selected?: boolean }) =>
+    apiRequest<TimelineSessionItem>(`/timeline/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiRequest<{ success: boolean }>(`/timeline/${id}`, {
+      method: 'DELETE',
     }),
 };
 
