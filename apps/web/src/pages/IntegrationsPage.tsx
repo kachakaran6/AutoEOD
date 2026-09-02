@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Github, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Lock } from 'lucide-react'
 import { getAccessToken, BASE_URL } from '@/lib/api'
 import { integrations, extensionTokens } from '@/lib/api'; import { MessageSquare, Copy } from 'lucide-react'; import { useState } from 'react';
+import { analytics } from '@/lib/analytics';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +29,7 @@ export function IntegrationsPage() {
   const disconnectMutation = useMutation({
     mutationFn: integrations.disconnectGitHub,
     onSuccess: () => {
+      analytics.disconnectIntegration('github')
       toast.success('GitHub disconnected')
       queryClient.invalidateQueries({ queryKey: ['integrations'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -38,6 +40,7 @@ export function IntegrationsPage() {
   const syncMutation = useMutation({
     mutationFn: integrations.syncGitHub,
     onSuccess: () => {
+      analytics.event('sync_integration', { platform: 'github' })
       toast.success('Sync queued successfully')
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['integrations'] })

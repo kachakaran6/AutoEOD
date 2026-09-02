@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { auth as authApi, setAccessToken, type User } from '@/lib/api';
+import { analytics } from '@/lib/analytics';
 
 interface AuthContextValue {
   user: User | null;
@@ -26,10 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ accessToken, user }) => {
         setAccessToken(accessToken);
         setUser(user);
+        analytics.setUser(user.id);
       })
       .catch(() => {
         // No valid session — that's fine
         setUser(null);
+        analytics.setUser(null);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -38,18 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { accessToken, user } = await authApi.login({ email, password });
     setAccessToken(accessToken);
     setUser(user);
+    analytics.setUser(user.id);
+    analytics.login('email');
   }, []);
 
   const signup = useCallback(async (name: string, email: string, password: string) => {
     const { accessToken, user } = await authApi.signup({ name, email, password });
     setAccessToken(accessToken);
     setUser(user);
+    analytics.setUser(user.id);
+    analytics.signUp('email');
   }, []);
 
   const logout = useCallback(async () => {
     await authApi.logout().catch(() => {});
     setAccessToken(null);
     setUser(null);
+    analytics.setUser(null);
+    analytics.logout();
   }, []);
 
   return (

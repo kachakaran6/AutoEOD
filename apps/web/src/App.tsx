@@ -17,6 +17,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ReportsHistoryPage } from '@/pages/ReportsHistoryPage'
 import { AdminPage } from '@/pages/Admin'
+import { AnalyticsTracker } from '@/components/AnalyticsTracker'
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -54,6 +55,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BrowserRouter>
+            <AnalyticsTracker />
             <Routes>
               {/* Public marketing & auth routes */}
               <Route path="/landing" element={<LandingPage />} />

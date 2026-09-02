@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { dashboard, reports } from '@/lib/api'
+import { analytics } from '@/lib/analytics'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +36,7 @@ export function DashboardPage() {
   const generateMutation = useMutation({
     mutationFn: reports.generate,
     onSuccess: (data) => {
+      analytics.generateReport({ auto: false })
       toast.success('Report generation started! Check back in a moment.', {
         description: `Job ID: ${data.jobId}`,
       })

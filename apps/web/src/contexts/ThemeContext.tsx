@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
+import { analytics } from "@/lib/analytics"
 
 export type Theme = "dark" | "light" | "system"
 export type AccentColor = "violet" | "skyblue" | "pink" | "yellow" | "monochrome"
@@ -129,11 +130,13 @@ export function ThemeProvider({
     setTheme: (newTheme: Theme) => {
       localStorage.setItem(storageKey, newTheme)
       setTheme(newTheme)
+      analytics.themeChanged(newTheme)
     },
     accentColor,
     setAccentColor: (newAccent: AccentColor) => {
       localStorage.setItem(accentStorageKey, newAccent)
       setAccentColor(newAccent)
+      analytics.event('change_accent', { accent: newAccent })
     },
     accentOptions: ACCENT_COLORS,
   }
