@@ -1,13 +1,15 @@
-// apps/api/src/routes/auth.ts
-// POST /api/auth/signup, /login, /refresh, /logout
-
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { prisma } from '@autoeod/db';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
-import { logger } from '../lib/logger';
-import { recordAuditLog } from '../lib/audit';
+import {
+  logger,
+  AuditService,
+  SecurityService,
+  EventTaxonomy,
+  updateObservabilityContext,
+} from '../lib/observability';
 
 export const authRouter = Router();
 
@@ -44,6 +46,15 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
+    await SecurityService.recordEvent({
+      eventType: EventTaxonomy.AUTH.SIGNUP_FAILED,
+      severity: 'LOW',
+      userEmail: email,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      route: '/api/auth/signup',
+      details: { reason: 'email_already_registered' },
+    });
     res.status(409).json({ error: 'Email already registered' });
     return;
   }
@@ -58,14 +69,20 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
     },
   });
 
+  updateObservabilityContext({ userId: user.id, userEmail: user.email, userRole: user.role });
   logger.info({ userId: user.id }, 'New user signed up');
 
-  await recordAuditLog({
-    action: 'USER_REGISTERED',
-    userId: user.id,
-    level: 'info',
+  await AuditService.recordEvent({
+    action: EventTaxonomy.AUTH.SIGNUP_SUCCESS,
+    actorId: user.id,
+    actorEmail: user.email,
+    actorRole: user.role,
+    category: 'auth',
+    resource: 'user',
+    resourceId: user.id,
     details: { name: user.name, email: user.email },
     ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
   });
 
   const accessToken = signAccessToken(user.id);
@@ -85,37 +102,53 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    await recordAuditLog({
-      action: 'USER_LOGIN_FAILED',
-      level: 'warn',
-      details: { email, reason: 'user_not_found' },
+    await SecurityService.recordEvent({
+      eventType: EventTaxonomy.AUTH.LOGIN_FAILED,
+      severity: 'LOW',
+      userEmail: email,
       ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      route: '/api/auth/login',
+      details: { reason: 'user_not_found' },
     });
+    await SecurityService.checkAndFlagBruteForce(req.ip, email);
+
     res.status(401).json({ error: 'Invalid email or password' });
     return;
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    await recordAuditLog({
-      action: 'USER_LOGIN_FAILED',
+    await SecurityService.recordEvent({
+      eventType: EventTaxonomy.AUTH.LOGIN_FAILED,
+      severity: 'MEDIUM',
       userId: user.id,
-      level: 'warn',
-      details: { email, reason: 'invalid_password' },
+      userEmail: email,
       ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      route: '/api/auth/login',
+      details: { reason: 'invalid_password' },
     });
+    await SecurityService.checkAndFlagBruteForce(req.ip, email);
+
     res.status(401).json({ error: 'Invalid email or password' });
     return;
   }
 
-  logger.info({ userId: user.id }, 'User logged in');
+  updateObservabilityContext({ userId: user.id, userEmail: user.email, userRole: user.role });
+  logger.info({ userId: user.id }, 'User logged in successfully');
 
-  await recordAuditLog({
-    action: 'USER_LOGIN_SUCCESS',
-    userId: user.id,
-    level: 'info',
+  await AuditService.recordEvent({
+    action: EventTaxonomy.AUTH.LOGIN_SUCCESS,
+    actorId: user.id,
+    actorEmail: user.email,
+    actorRole: user.role,
+    category: 'auth',
+    resource: 'user',
+    resourceId: user.id,
     details: { email: user.email, role: user.role },
     ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
   });
 
   const accessToken = signAccessToken(user.id);
@@ -143,6 +176,8 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    updateObservabilityContext({ userId: user.id, userEmail: user.email, userRole: user.role });
+
     const accessToken = signAccessToken(user.id);
     const newRefreshToken = signRefreshToken(user.id);
     res.cookie(REFRESH_COOKIE, newRefreshToken, COOKIE_OPTIONS);
@@ -154,7 +189,17 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
 });
 
 // ── POST /api/auth/logout ────────────────────────────────────────────────────
-authRouter.post('/logout', (_req: Request, res: Response): void => {
+authRouter.post('/logout', async (req: Request, res: Response): Promise<void> => {
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+  if (req.userId) {
+    await AuditService.recordEvent({
+      action: EventTaxonomy.AUTH.LOGOUT,
+      actorId: req.userId,
+      category: 'auth',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
   res.json({ message: 'Logged out' });
 });
+

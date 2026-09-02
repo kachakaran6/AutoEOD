@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 const baseNavItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -118,31 +119,34 @@ export function Sidebar({ onClose, className }: SidebarProps) {
         {/* Admin Navigation Section */}
         {user?.role === 'ADMIN' && (
           <div className="pt-3 border-t border-border/60 space-y-1">
-            <div className="px-3 pb-1.5 flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
-              <Shield className="h-3 h-3 text-primary" />
-              ADMINISTRATION
+            <div className="px-3 pb-1.5 flex items-center justify-between text-[10px] font-bold text-primary uppercase tracking-wider">
+              <span className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-primary" />
+                ADMIN PLATFORM
+              </span>
             </div>
 
-            {adminNavItems.map(({ tab, label, icon: Icon }) => {
-              const isAdminActive = pathname === '/admin' && currentTab === tab
-              return (
-                <NavLink
-                  key={tab}
-                  to={`/admin?tab=${tab}`}
-                  onClick={handleNavClick}
-                  id={`nav-admin-${tab}`}
-                  className={cn(
-                    'flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150',
-                    isAdminActive
-                      ? 'bg-primary/10 text-primary border border-primary/20 font-semibold shadow-sm shadow-primary/10'
-                      : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </NavLink>
-              )
-            })}
+            <NavLink
+              to="/admin/observability"
+              onClick={handleNavClick}
+              id="nav-admin-observability"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150',
+                  isActive || pathname.startsWith('/admin')
+                    ? 'bg-primary/10 text-primary border border-primary/20 font-semibold shadow-sm shadow-primary/10'
+                    : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                )
+              }
+            >
+              <div className="flex items-center gap-3">
+                <Activity className="h-4 w-4 shrink-0 text-primary" />
+                <span>Admin Console</span>
+              </div>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/30 text-primary">
+                Live
+              </Badge>
+            </NavLink>
           </div>
         )}
       </nav>

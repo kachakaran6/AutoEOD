@@ -153,7 +153,7 @@ googleAuthRouter.get('/callback', async (req: Request, res: Response): Promise<v
     logger.info({ userId, email: googleUser.email }, 'Google email connected');
     res.redirect(`${frontendUrl}/settings?connected=google`);
   } catch (err) {
-    logger.error(err, 'Failed to process Google callback');
+    logger.error({ err }, 'Failed to process Google callback');
     res.redirect(`${frontendUrl}/settings?error=server_error`);
   }
 });

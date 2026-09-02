@@ -162,7 +162,7 @@ zohoAuthRouter.get('/callback', async (req: Request, res: Response): Promise<voi
     logger.info({ userId, email }, 'Zoho email connected');
     res.redirect(`${frontendUrl}/settings?connected=zoho`);
   } catch (err) {
-    logger.error(err, 'Failed to process Zoho callback');
+    logger.error({ err }, 'Failed to process Zoho callback');
     res.redirect(`${frontendUrl}/settings?error=server_error`);
   }
 });

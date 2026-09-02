@@ -307,3 +307,194 @@ model AuditLog {
 
   @@index([createdAt])
 }
+
+// ── Enterprise Observability & Audit Models ───────────────────────────────────
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  actorId      String?
+  actorEmail   String?
+  actorRole    String?
+  targetUserId String?
+  action       String   // e.g. "AUTH.LOGIN_SUCCESS", "REPORT.GENERATED", "SETTINGS.UPDATED"
+  category     String   @default("user") // "auth" | "user" | "report" | "integration" | "ai" | "email" | "system"
+  resource     String?  // "user" | "report" | "integration" | "settings" | "config"
+  resourceId   String?
+  status       String   @default("SUCCESS") // "SUCCESS" | "FAILURE" | "DENIED"
+  reason       String?
+  details      Json?    // Structured redacted metadata
+  beforeState  Json?
+  afterState   Json?
+  ipAddress    String?
+  userAgent    String?
+  requestId    String?
+  traceId      String?
+  spanId       String?
+
+  @@index([timestamp])
+  @@index([actorId, timestamp])
+  @@index([targetUserId, timestamp])
+  @@index([action, timestamp])
+  @@index([category, timestamp])
+  @@index([traceId])
+}
+
+model AdminAction {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  adminId     String
+  adminEmail  String
+  action      String   // e.g. "CONFIG.UPDATED", "USER.ROLE_CHANGED", "EXTENSION.RELEASE_BUILT"
+  targetType  String?  // "user" | "config" | "template" | "alert" | "retention" | "system"
+  targetId    String?
+  before      Json?
+  after       Json?
+  reason      String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  traceId     String?
+
+  @@index([timestamp])
+  @@index([adminId, timestamp])
+  @@index([action, timestamp])
+}
+
+model SecurityEvent {
+  id          String    @id @default(cuid())
+  timestamp   DateTime  @default(now())
+  eventType   String    // "AUTH.LOGIN_FAILED", "SECURITY.BRUTE_FORCE_SUSPECTED", "SECURITY.PERMISSION_DENIED", etc.
+  severity    String    @default("LOW") // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  userId      String?
+  userEmail   String?
+  ipAddress   String?
+  userAgent   String?
+  route       String?
+  method      String?
+  statusCode  Int?
+  requestId   String?
+  traceId     String?
+  details     Json?
+  resolved    Boolean   @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+
+  @@index([timestamp])
+  @@index([severity, timestamp])
+  @@index([eventType, timestamp])
+  @@index([ipAddress, timestamp])
+  @@index([userId, timestamp])
+}
+
+model ErrorGroup {
+  id                 String            @id @default(cuid())
+  fingerprint        String            @unique
+  name               String
+  message            String
+  service            String            @default("api")
+  environment        String            @default("production")
+  firstSeen          DateTime          @default(now())
+  lastSeen           DateTime          @default(now())
+  totalOccurrences   Int               @default(1)
+  affectedUsersCount Int               @default(1)
+  status             String            @default("UNRESOLVED") // "UNRESOLVED" | "RESOLVED" | "IGNORED"
+  lastTraceId        String?
+  sampleStackTrace   String?           @db.Text
+  occurrences        ErrorOccurrence[]
+
+  @@index([status, lastSeen])
+  @@index([firstSeen])
+}
+
+model ErrorOccurrence {
+  id          String     @id @default(cuid())
+  groupId     String
+  group       ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  timestamp   DateTime   @default(now())
+  message     String
+  stackTrace  String?    @db.Text
+  userId      String?
+  userEmail   String?
+  route       String?
+  method      String?
+  statusCode  Int?
+  requestId   String?
+  traceId     String?
+  metadata    Json?
+
+  @@index([groupId, timestamp])
+  @@index([timestamp])
+  @@index([traceId])
+}
+
+model AlertRule {
+  id                  String          @id @default(cuid())
+  name                String
+  description         String?
+  metric              String          // "5xx_rate" | "ai_fallback_rate" | "job_failure_rate" | "db_latency" | "security_failures"
+  condition           String          @default("gt") // "gt" | "lt" | "eq"
+  threshold           Float
+  windowMinutes       Int             @default(5)
+  severity            String          @default("WARNING") // "INFO" | "WARNING" | "CRITICAL"
+  enabled             Boolean         @default(true)
+  notificationChannel String          @default("email")
+  recipients          String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  incidents           AlertIncident[]
+}
+
+model AlertIncident {
+  id          String    @id @default(cuid())
+  ruleId      String
+  rule        AlertRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  status      String    @default("TRIGGERED") // "TRIGGERED" | "RESOLVED" | "ACKNOWLEDGED"
+  triggeredAt DateTime  @default(now())
+  resolvedAt  DateTime?
+  metricValue Float
+  message     String
+  details     Json?
+
+  @@index([ruleId, triggeredAt])
+  @@index([status, triggeredAt])
+}
+
+model RetentionPolicy {
+  id                 String   @id @default(cuid())
+  logCategory        String   @unique // "app_logs" | "api_logs" | "error_logs" | "audit_logs" | "security_logs" | "job_logs"
+  retentionDays      Int      @default(30)
+  archiveEnabled     Boolean  @default(false)
+  archiveStoragePath String?
+  updatedAt          DateTime @updatedAt
+}
+
+model LogExportJob {
+  id                  String    @id @default(cuid())
+  requestedByUserId   String
+  requestedByUserEmail String
+  category            String
+  filters             Json?
+  format              String    @default("json") // "json" | "csv"
+  status              String    @default("PENDING") // "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
+  rowCount            Int?
+  fileSizeBytes       Int?
+  downloadUrl         String?
+  errorMessage        String?
+  expiresAt           DateTime?
+  createdAt           DateTime  @default(now())
+  completedAt         DateTime?
+
+  @@index([requestedByUserId, createdAt])
+}
+
+model ObservabilitySettings {
+  id                  String   @id @default("global")
+  logLevel            String   @default("info") // "trace" | "debug" | "info" | "warn" | "error"
+  samplingRatePercent Float    @default(100.0)
+  aiPromptPrivacy     String   @default("metadata_only") // "off" | "metadata_only" | "full"
+  redactionEnabled    Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}
+

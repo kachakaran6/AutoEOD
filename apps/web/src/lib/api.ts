@@ -514,10 +514,10 @@ export interface AdminUser {
   role: string;
   createdAt: string;
   updatedAt: string;
-  _count: {
+  _count?: {
     reports: number;
     activityEvents: number;
-    browserLogs: number;
+    browserLogs?: number;
   };
 }
 
@@ -547,6 +547,340 @@ export interface AdminHealth {
     failed: number;
     delayed: number;
     waiting: number;
+  }>;
+}
+
+// ── Observability & Admin Platform Types ───────────────────────────────────────
+
+export interface ObservabilityOverview {
+  systemHealth: {
+    overall: 'healthy' | 'degraded' | 'down';
+    database: { status: string; latencyMs: number };
+    redis: { status: string; latencyMs: number };
+    queues: Record<string, { active: number; completed: number; failed: number; delayed: number; waiting: number }>;
+    uptimeSeconds: number;
+    timestamp: string;
+  };
+  requests: {
+    total: number;
+    status2xx: number;
+    status3xx: number;
+    status4xx: number;
+    status5xx: number;
+    errorRate: number;
+    failure5xxRate: number;
+    requestsPerMinute: number;
+  };
+  latency: {
+    avg: number;
+    p50: number;
+    p75: number;
+    p90: number;
+    p95: number;
+    p99: number;
+  };
+  comparison: {
+    requestsVsYesterday: number;
+    errorsVsYesterday: number;
+    latencyVsYesterday: number;
+  };
+  usage: {
+    totalUsers: number;
+    reportsToday: number;
+    aiCalls: number;
+    aiFallbacks: number;
+    backgroundJobs: number;
+    failedJobs: number;
+  };
+  security: {
+    securityEventsToday: number;
+    activeAlerts: number;
+  };
+  errors: {
+    unresolvedErrorGroups: number;
+  };
+  timeSeries: Array<{
+    timestamp: string;
+    requests: number;
+    errors: number;
+    p50Ms: number;
+    p95Ms: number;
+    aiCalls: number;
+  }>;
+}
+
+export interface StructuredLogItem {
+  id: string;
+  timestamp: string;
+  level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+  service: string;
+  environment: string;
+  application: string;
+  hostname: string;
+  processId: number;
+  requestId?: string;
+  traceId?: string;
+  spanId?: string;
+  userId?: string;
+  userEmail?: string;
+  action?: string;
+  category?: string;
+  message: string;
+  durationMs?: number;
+  status?: string | number;
+  metadata?: Record<string, any>;
+  error?: {
+    name?: string;
+    message?: string;
+    stack?: string;
+    code?: string;
+  };
+}
+
+export interface LogsQueryResponse {
+  logs: StructuredLogItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  levelCounts: Record<string, number>;
+  categoryCounts: Record<string, number>;
+}
+
+export interface TraceSummaryItem {
+  traceId: string;
+  rootSpanName: string;
+  startTime: number;
+  endTime: number;
+  durationMs: number;
+  status: 'OK' | 'ERROR';
+  service: string;
+  httpMethod?: string;
+  httpRoute?: string;
+  httpStatus?: number;
+  userId?: string;
+  userEmail?: string;
+  spanCount: number;
+  errorCount: number;
+}
+
+export interface SpanItem {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  kind: 'SERVER' | 'CLIENT' | 'PRODUCER' | 'CONSUMER' | 'INTERNAL';
+  service: string;
+  startTime: number;
+  endTime?: number;
+  durationMs?: number;
+  status: 'OK' | 'ERROR' | 'UNSET';
+  attributes: Record<string, any>;
+  events: Array<{ name: string; timestamp: number; attributes?: Record<string, any> }>;
+  error?: { message: string; stack?: string };
+}
+
+export interface TraceDetailResponse extends TraceSummaryItem {
+  spans: SpanItem[];
+}
+
+export interface TracesQueryResponse {
+  traces: TraceSummaryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ErrorGroupItem {
+  id: string;
+  fingerprint: string;
+  name: string;
+  message: string;
+  service: string;
+  environment: string;
+  firstSeen: string;
+  lastSeen: string;
+  totalOccurrences: number;
+  affectedUsersCount: number;
+  status: 'UNRESOLVED' | 'RESOLVED' | 'IGNORED';
+  lastTraceId?: string;
+  sampleStackTrace?: string;
+  _count?: { occurrences: number };
+}
+
+export interface ErrorOccurrenceItem {
+  id: string;
+  groupId: string;
+  timestamp: string;
+  message: string;
+  stackTrace?: string;
+  userId?: string;
+  userEmail?: string;
+  route?: string;
+  method?: string;
+  statusCode?: number;
+  requestId?: string;
+  traceId?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ErrorDetailResponse extends ErrorGroupItem {
+  occurrences: ErrorOccurrenceItem[];
+}
+
+export interface ErrorsQueryResponse {
+  errors: ErrorGroupItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AuditEventItem {
+  id: string;
+  timestamp: string;
+  actorId?: string;
+  actorEmail?: string;
+  actorRole?: string;
+  targetUserId?: string;
+  action: string;
+  category: string;
+  resource?: string;
+  resourceId?: string;
+  status: string;
+  reason?: string;
+  details?: Record<string, any>;
+  beforeState?: Record<string, any>;
+  afterState?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
+  traceId?: string;
+  spanId?: string;
+}
+
+export interface AdminActionItem {
+  id: string;
+  timestamp: string;
+  adminId: string;
+  adminEmail: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  before?: Record<string, any>;
+  after?: Record<string, any>;
+  reason?: string;
+  details?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
+  traceId?: string;
+}
+
+export interface SecurityEventItem {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  userId?: string;
+  userEmail?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  route?: string;
+  method?: string;
+  statusCode?: number;
+  requestId?: string;
+  traceId?: string;
+  details?: Record<string, any>;
+  resolved: boolean;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface AlertRuleItem {
+  id: string;
+  name: string;
+  description?: string;
+  metric: string;
+  condition: string;
+  threshold: number;
+  windowMinutes: number;
+  severity: string;
+  enabled: boolean;
+  notificationChannel: string;
+  recipients?: string;
+  createdAt: string;
+  _count?: { incidents: number };
+}
+
+export interface AlertIncidentItem {
+  id: string;
+  ruleId: string;
+  status: string;
+  triggeredAt: string;
+  resolvedAt?: string;
+  metricValue: number;
+  message: string;
+  details?: Record<string, any>;
+  rule?: { name: string; severity: string };
+}
+
+export interface RetentionPolicyItem {
+  id: string;
+  logCategory: string;
+  retentionDays: number;
+  archiveEnabled: boolean;
+  archiveStoragePath?: string;
+}
+
+export interface ObservabilitySettings {
+  id: string;
+  logLevel: string;
+  samplingRatePercent: number;
+  aiPromptPrivacy: string;
+  redactionEnabled: boolean;
+}
+
+export interface EndpointMetricItem {
+  route: string;
+  method: string;
+  count: number;
+  errorCount: number;
+  errorRate: number;
+  avgDurationMs: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+  minDurationMs: number;
+  maxDurationMs: number;
+  lastAccessedAt: string;
+}
+
+export interface PerformanceMetricsResponse {
+  requests: {
+    total: number;
+    status2xx: number;
+    status3xx: number;
+    status4xx: number;
+    status5xx: number;
+    errorRate: number;
+  };
+  latency: {
+    avg: number;
+    p50: number;
+    p75: number;
+    p90: number;
+    p95: number;
+    p99: number;
+  };
+  endpoints: EndpointMetricItem[];
+  timeSeries: Array<{
+    timestamp: string;
+    requests: number;
+    errors: number;
+    p50Ms: number;
+    p95Ms: number;
   }>;
 }
 
@@ -594,7 +928,7 @@ export interface AdminModelsUsage {
     count: number;
     percentage: number;
   }>;
-  recentAiLogs: AuditLogItem[];
+  recentAiLogs: any[];
 }
 
 export interface AdminAnalytics {
@@ -622,6 +956,224 @@ export interface AuditLogsResponse {
 }
 
 export const admin = {
+  // Observability & Telemetry
+  getObservabilityOverview: () => apiRequest<ObservabilityOverview>('/admin/observability/overview'),
+  getLogs: (params?: {
+    level?: string;
+    service?: string;
+    category?: string;
+    traceId?: string;
+    requestId?: string;
+    userId?: string;
+    action?: string;
+    search?: string;
+    startTime?: string;
+    endTime?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<LogsQueryResponse>(`/admin/logs${query}`);
+  },
+  getTraces: (params?: {
+    service?: string;
+    status?: string;
+    route?: string;
+    search?: string;
+    minDurationMs?: number;
+    startTime?: string;
+    endTime?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<TracesQueryResponse>(`/admin/traces${query}`);
+  },
+  getTraceDetail: (traceId: string) => apiRequest<TraceDetailResponse>(`/admin/traces/${traceId}`),
+  getErrors: (params?: { status?: string; service?: string; search?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<ErrorsQueryResponse>(`/admin/errors${query}`);
+  },
+  getErrorDetail: (id: string) => apiRequest<ErrorDetailResponse>(`/admin/errors/${id}`),
+  updateErrorStatus: (id: string, status: 'UNRESOLVED' | 'RESOLVED' | 'IGNORED') =>
+    apiRequest<ErrorGroupItem>(`/admin/errors/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  getMetrics: () => apiRequest<PerformanceMetricsResponse>('/admin/metrics'),
+
+  // Audit Trails & Security
+  getUserAudit: (params?: {
+    category?: string;
+    action?: string;
+    userId?: string;
+    search?: string;
+    startTime?: string;
+    endTime?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<{ events: AuditEventItem[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/admin/audit/users${query}`
+    );
+  },
+  getUserTimeline: (userId: string) =>
+    apiRequest<{ user: { id: string; name: string; email: string; createdAt: string }; timeline: AuditEventItem[] }>(
+      `/admin/audit/users/${userId}/timeline`
+    ),
+  getAdminAudit: (params?: { action?: string; search?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<{ actions: AdminActionItem[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/admin/audit/admin${query}`
+    );
+  },
+  getSecurityLogs: (params?: { severity?: string; eventType?: string; search?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== 'all') qs.set(k, String(v));
+      }
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<{ events: SecurityEventItem[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/admin/security${query}`
+    );
+  },
+  resolveSecurityEvent: (id: string) =>
+    apiRequest<SecurityEventItem>(`/admin/security/${id}/resolve`, {
+      method: 'PATCH',
+    }),
+
+  // Operations (Jobs, Scheduler, Integrations, Email)
+  getJobs: () => apiRequest<{ queues: Array<{ name: string; counts: any; recentJobs: any[] }> }>('/admin/jobs'),
+  retryJob: (queueName: string, jobId: string) =>
+    apiRequest<{ success: boolean; message: string }>(`/admin/jobs/${queueName}/${jobId}/retry`, {
+      method: 'POST',
+    }),
+  getScheduler: () =>
+    apiRequest<{ schedulers: any[]; recentExecutionLogs: StructuredLogItem[] }>('/admin/scheduler'),
+  getIntegrationsStats: () =>
+    apiRequest<{ connectedProviders: { github: number; google: number; zoho: number }; recentEvents: AuditEventItem[] }>(
+      '/admin/integrations/stats'
+    ),
+  getEmailLogs: (params?: { page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiRequest<{ events: AuditEventItem[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/admin/email/logs${query}`
+    );
+  },
+
+  // AI & System Health
+  getAiObservability: () => apiRequest<AdminModelsUsage>('/admin/ai'),
+  getSystemHealth: () =>
+    apiRequest<{
+      timestamp: string;
+      uptimeSeconds: number;
+      database: { status: string; latencyMs?: number; error?: string };
+      redis: { status: string; latencyMs?: number; error?: string; memory?: string; opsPerSec?: number; totalKeys?: number };
+      queues: Record<string, any>;
+      aiProvider: { status: string; provider: string };
+      emailProvider: { status: string; provider: string };
+    }>('/admin/system-health'),
+
+  // Alerts, Retention, Export & Settings
+  getAlerts: () => apiRequest<{ rules: AlertRuleItem[]; incidents: AlertIncidentItem[] }>('/admin/alerts'),
+  createAlert: (data: {
+    name: string;
+    description?: string;
+    metric: string;
+    condition?: string;
+    threshold: number;
+    windowMinutes?: number;
+    severity?: string;
+    recipients?: string;
+  }) =>
+    apiRequest<AlertRuleItem>('/admin/alerts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateAlert: (id: string, data: Partial<AlertRuleItem>) =>
+    apiRequest<AlertRuleItem>(`/admin/alerts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteAlert: (id: string) =>
+    apiRequest<{ success: boolean }>(`/admin/alerts/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getRetention: () =>
+    apiRequest<{
+      policies: RetentionPolicyItem[];
+      storageStats: { errorOccurrences: number; securityEvents: number; auditEvents: number };
+    }>('/admin/retention'),
+  updateRetention: (category: string, data: { retentionDays: number; archiveEnabled?: boolean }) =>
+    apiRequest<RetentionPolicyItem>(`/admin/retention/${category}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  runRetentionCleanup: () =>
+    apiRequest<{ success: boolean; result: any }>('/admin/retention/run-cleanup', {
+      method: 'POST',
+    }),
+
+  createExportJob: (data: { category: string; filters?: any; format?: 'json' | 'csv' }) =>
+    apiRequest<{ success: boolean; jobId: string; message: string }>('/admin/logs/export', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getExportStatus: (id: string) =>
+    apiRequest<{
+      id: string;
+      status: string;
+      rowCount?: number;
+      fileSizeBytes?: number;
+      downloadUrl?: string;
+      errorMessage?: string;
+    }>(`/admin/logs/export/${id}`),
+
+  getLogSettings: () => apiRequest<ObservabilitySettings>('/admin/log-settings'),
+  updateLogSettings: (data: Partial<ObservabilitySettings>) =>
+    apiRequest<ObservabilitySettings>('/admin/log-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  // Preserved Existing Management API
   getConfig: () => apiRequest<AdminSystemConfig>('/admin/config'),
   updateConfig: (data: Partial<AdminSystemConfig>) =>
     apiRequest<AdminSystemConfig>('/admin/config', {
@@ -634,7 +1186,7 @@ export const admin = {
       method: 'PATCH',
       body: JSON.stringify({ role }),
     }),
-  getHealth: () => apiRequest<AdminHealth>('/admin/health'),
+  getHealth: () => apiRequest<AdminHealth>('/admin/system-health'),
   getTemplates: () => apiRequest<EmailTemplate[]>('/admin/templates'),
   createTemplate: (data: Partial<EmailTemplate>) =>
     apiRequest<EmailTemplate>('/admin/templates', {
@@ -660,7 +1212,7 @@ export const admin = {
     const query = qs.toString() ? `?${qs.toString()}` : '';
     return apiRequest<AuditLogsResponse>(`/admin/audit-logs${query}`);
   },
-  getModelsUsage: () => apiRequest<AdminModelsUsage>('/admin/models-usage'),
+  getModelsUsage: () => apiRequest<AdminModelsUsage>('/admin/ai'),
   getAnalytics: () => apiRequest<AdminAnalytics>('/admin/analytics'),
   releaseExtension: (data: { githubToken?: string; repo?: string; tag?: string; apiBaseUrl?: string }) =>
     apiRequest<{
@@ -675,3 +1227,4 @@ export const admin = {
       body: JSON.stringify(data),
     }),
 };
+

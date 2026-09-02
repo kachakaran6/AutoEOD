@@ -1,8 +1,8 @@
 // apps/api/src/lib/audit.ts
-// Helper to record system audit events in PostgreSQL and Pino logger
+// Bridge for recording system audit events via centralized AuditService
 
-import { prisma } from '@autoeod/db';
-import { logger } from './logger';
+import { AuditService } from './observability/auditService';
+import { logger } from './observability';
 
 export async function recordAuditLog(params: {
   action: string;
@@ -11,22 +11,13 @@ export async function recordAuditLog(params: {
   details?: Record<string, any>;
   ipAddress?: string;
 }) {
-  const level = params.level || 'info';
-  const detailsStr = params.details ? JSON.stringify(params.details) : undefined;
-
   logger.info({ action: params.action, userId: params.userId, details: params.details }, `[AuditLog] ${params.action}`);
 
-  try {
-    await prisma.auditLog.create({
-      data: {
-        action: params.action,
-        userId: params.userId,
-        level,
-        details: detailsStr,
-        ipAddress: params.ipAddress,
-      },
-    });
-  } catch (err) {
-    logger.error({ err }, 'Failed to persist audit log to database');
-  }
+  await AuditService.recordEvent({
+    action: params.action,
+    actorId: params.userId,
+    status: params.level === 'error' ? 'FAILURE' : 'SUCCESS',
+    details: params.details,
+    ipAddress: params.ipAddress,
+  });
 }

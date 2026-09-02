@@ -694,8 +694,8 @@ export function AdminPage() {
                         <td className="py-3 px-4 text-muted-foreground">
                           {new Date(u.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="py-3 px-4 text-muted-foreground">{u._count.reports}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{u._count.activityEvents}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{u._count?.reports || 0}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{u._count?.activityEvents || 0}</td>
                         <td className="py-3 px-4 text-right">
                           <Button
                             variant="outline"
@@ -811,7 +811,7 @@ export function AdminPage() {
                     BullMQ Queue Job Stats
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {Object.entries(health.queues).map(([name, counts]) => (
+                    {Object.entries(health.queues).map(([name, counts]: [string, any]) => (
                       <div key={name} className="bg-muted/30 border border-border p-4 rounded-xl space-y-2">
                         <div className="text-xs font-semibold text-foreground truncate">{name}</div>
                         <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">

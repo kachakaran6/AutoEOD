@@ -6,8 +6,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { pinoHttp } from 'pino-http';
-import { logger } from './lib/logger';
+import { logger, ErrorTracker } from './lib/observability';
+import { observabilityMiddleware } from './middleware/observabilityMiddleware';
 
 import { authRouter } from './routes/auth';
 import { googleAuthRouter } from './routes/auth/google';
@@ -54,20 +54,7 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(
-  pinoHttp({
-    logger,
-    customLogLevel(req, res, err) {
-      if (err || res.statusCode >= 500) return 'error';
-      if (res.statusCode >= 400) return 'warn';
-      return 'info';
-    },
-    // Don't log health checks
-    autoLogging: {
-      ignore: (req) => req.url === '/health',
-    },
-  })
-);
+app.use(observabilityMiddleware);
 
 // ── Auth rate limiter (brute force protection) ─────────────────────────────────
 const authLimiter = rateLimit({
@@ -99,15 +86,20 @@ app.use('/api/extension-settings', extensionSettingsRouter);
 app.use('/api/holidays', holidaysRouter);
 app.use('/api/timeline', timelineRouter);
 
-
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({ error: 'Not found' });
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error({ err }, 'Unhandled error');
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err, route: req.path, method: req.method }, 'Unhandled error in API request');
+  ErrorTracker.captureException(err, {
+    route: req.path,
+    method: req.method,
+    statusCode: 500,
+    userId: req.userId,
+  }).catch(() => {});
   res.status(500).json({ error: 'Internal server error' });
 });
 
