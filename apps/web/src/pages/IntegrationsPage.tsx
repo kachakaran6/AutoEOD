@@ -1,7 +1,7 @@
 // apps/web/src/pages/IntegrationsPage.tsx
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import { Github, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Lock } from 'lucide-react'
+import { Github, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Loader2, Lock, Building2, ShieldAlert, ExternalLink } from 'lucide-react'
 import { getAccessToken, BASE_URL } from '@/lib/api'
 import { integrations, extensionTokens } from '@/lib/api'; import { MessageSquare, Copy } from 'lucide-react'; import { useState } from 'react';
 import { analytics } from '@/lib/analytics';
@@ -37,8 +37,8 @@ export function IntegrationsPage() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const syncMutation = useMutation({
-    mutationFn: integrations.syncGitHub,
+  const syncMutation = useMutation<{ message: string }, Error, { fullSync?: boolean } | void>({
+    mutationFn: (options) => integrations.syncGitHub(options || undefined),
     onSuccess: () => {
       analytics.event('sync_integration', { platform: 'github' })
       toast.success('Sync queued successfully')
@@ -145,7 +145,60 @@ export function IntegrationsPage() {
                     </Badge>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                {/* Organizations Section */}
+                {github.organizations && github.organizations.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Accessible Organizations ({github.organizations.length})
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {github.organizations.map((org) => (
+                        <div key={org.login} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs">
+                          {org.avatarUrl ? (
+                            <img src={org.avatarUrl} alt={org.login} className="h-4 w-4 rounded-full" />
+                          ) : (
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="font-medium">@{org.login}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Organization Access Notice */}
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-medium text-blue-400">
+                    <ShieldAlert className="h-4 w-4 shrink-0" />
+                    <span>Working in a GitHub Organization?</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    If your repository is part of an organization with Third-Party Application Restrictions, ensure access is granted to AutoEOD so all organization commits and private branches can be tracked.
+                  </p>
+                  <div className="pt-1 flex flex-wrap items-center gap-3">
+                    <a
+                      href={github.clientId ? `https://github.com/settings/connections/applications/${github.clientId}` : 'https://github.com/settings/connections/applications'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
+                      <span>Review Organization Permissions on GitHub</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {!github.scopes.includes('read:org') && (
+                      <button
+                        onClick={handleConnect}
+                        className="text-amber-400 hover:underline font-medium inline-flex items-center gap-1"
+                      >
+                        Update Permissions (Grant Org Access)
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
                   {github.needsReconnect && (
                     <Button
                       size="sm"
@@ -160,7 +213,7 @@ export function IntegrationsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      toast.info('Syncing...', { duration: 2000 })
+                      toast.info('Syncing recent activity...', { duration: 2000 })
                       syncMutation.mutate()
                     }}
                     disabled={syncMutation.isPending || disconnectMutation.isPending}
@@ -172,6 +225,23 @@ export function IntegrationsPage() {
                       <RefreshCw className="h-3.5 w-3.5" />
                     )}
                     Sync Now
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      toast.info('Triggering full 14-day sync for all branches & orgs...', { duration: 2500 })
+                      syncMutation.mutate({ fullSync: true })
+                    }}
+                    disabled={syncMutation.isPending || disconnectMutation.isPending}
+                    id="btn-full-sync-github"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Full Sync (14 Days)
                   </Button>
                   <Button
                     variant="destructive"

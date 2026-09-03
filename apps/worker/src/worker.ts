@@ -64,7 +64,7 @@ const githubSyncWorker = new Worker(
         }
       }
     } else if (job.data.userId) {
-      await syncGitHubActivity(job.data.userId);
+      await syncGitHubActivity(job.data.userId, { resetCursor: job.data.resetCursor });
     }
   },
   { ...UPSTASH_WORKER_OPTS, concurrency: 2 }

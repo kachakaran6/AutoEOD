@@ -14,7 +14,7 @@ import { recordAuditLog } from '../lib/audit';
 export const integrationsRouter = Router();
 
 const GITHUB_STATE_COOKIE = 'gh_oauth_state';
-const GITHUB_SCOPES = 'repo read:user';
+const GITHUB_SCOPES = 'repo read:user read:org';
 
 function getGitHubConfig() {
   const clientId = process.env.GITHUB_CLIENT_ID;
@@ -184,6 +184,7 @@ integrationsRouter.delete('/github', requireAuth, async (req: Request, res: Resp
 // ── POST /api/integrations/github/sync ────────────────────────────────────────
 integrationsRouter.post('/github/sync', requireAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
+  const fullSync = req.body?.fullSync === true;
   const integration = await prisma.githubIntegration.findUnique({ where: { userId } });
   
   if (!integration) {
@@ -191,19 +192,23 @@ integrationsRouter.post('/github/sync', requireAuth, async (req: Request, res: R
     return;
   }
 
-  // Trigger immediate sync
-  await githubSyncQueue.add('sync-single', { userId }, { jobId: `sync-single-${userId}-${Date.now()}` });
+  // Trigger immediate sync with optional resetCursor
+  await githubSyncQueue.add(
+    'sync-single',
+    { userId, resetCursor: fullSync },
+    { jobId: `sync-single-${userId}-${Date.now()}` }
+  );
   
   await recordAuditLog({
-    action: 'GITHUB_SYNC_TRIGGERED',
+    action: fullSync ? 'GITHUB_FULL_SYNC_TRIGGERED' : 'GITHUB_SYNC_TRIGGERED',
     userId,
     level: 'info',
-    details: { username: integration.githubUsername },
+    details: { username: integration.githubUsername, fullSync },
     ipAddress: req.ip,
   });
 
-  logger.info({ userId }, 'Manual GitHub sync triggered');
-  res.json({ message: 'Sync queued successfully' });
+  logger.info({ userId, fullSync }, 'Manual GitHub sync triggered');
+  res.json({ message: fullSync ? 'Full sync (14 days) queued successfully' : 'Sync queued successfully' });
 });
 
 // ── GET /api/integrations ─────────────────────────────────────────────────────
@@ -218,8 +223,39 @@ integrationsRouter.get('/', requireAuth, async (req: Request, res: Response): Pr
       connectedAt: true,
       lastSyncedAt: true,
       needsReconnect: true,
+      accessTokenEnc: true,
     },
   });
+
+  let organizations: Array<{ login: string; avatarUrl: string; description: string | null }> = [];
+
+  if (github && !github.needsReconnect) {
+    try {
+      const token = decrypt(github.accessTokenEnc);
+      const orgsRes = await fetch('https://api.github.com/user/orgs', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'AutoEOD/1.0',
+        },
+      });
+      if (orgsRes.ok) {
+        const orgsData = (await orgsRes.json()) as Array<{ login: string; avatar_url: string; description: string | null }>;
+        if (Array.isArray(orgsData)) {
+          organizations = orgsData.map((o) => ({
+            login: o.login,
+            avatarUrl: o.avatar_url,
+            description: o.description,
+          }));
+        }
+      }
+    } catch (e) {
+      // non-blocking
+    }
+  }
+
+  const clientId = process.env.GITHUB_CLIENT_ID;
 
   res.json({
     github: github
@@ -230,8 +266,10 @@ integrationsRouter.get('/', requireAuth, async (req: Request, res: Response): Pr
           connectedAt: github.connectedAt,
           lastSyncedAt: github.lastSyncedAt,
           needsReconnect: github.needsReconnect,
+          organizations,
+          clientId,
         }
-      : { connected: false },
+      : { connected: false, clientId },
   });
 });
 

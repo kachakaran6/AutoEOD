@@ -1,5 +1,6 @@
 // apps/web/src/pages/TimelinePage.tsx
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
@@ -55,8 +56,8 @@ export function TimelinePage() {
   const queryClient = useQueryClient()
 
 
-  const syncMutation = useMutation({
-    mutationFn: integrations.syncGitHub,
+  const syncMutation = useMutation<{ message: string }, Error, { fullSync?: boolean } | void>({
+    mutationFn: (options) => integrations.syncGitHub(options || undefined),
     onSuccess: () => {
       toast.success('Sync queued successfully')
       setTimeout(() => {
@@ -179,13 +180,22 @@ export function TimelinePage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted">
                 <Activity className="h-7 w-7 text-muted-foreground" />
               </div>
-              <div>
+              <div className="max-w-md">
                 <p className="font-medium">No activity recorded</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isToday
                     ? 'Activity is synced every 15 minutes. Push some commits to see them appear here.'
                     : 'No GitHub activity was tracked on this date.'}
                 </p>
+                <div className="mt-4 p-3 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground text-left space-y-1">
+                  <p className="font-medium text-foreground">💡 Working in an organization repository?</p>
+                  <p>
+                    Make sure your GitHub account has approved organization access. You can trigger a full 14-day scan or review permissions in{' '}
+                    <Link to="/integrations" className="text-primary hover:underline font-medium">
+                      Integrations
+                    </Link>.
+                  </p>
+                </div>
               </div>
             </div>
           ) : (

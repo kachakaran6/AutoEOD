@@ -162,7 +162,11 @@ export const reports = {
 export const integrations = {
   get: () => apiRequest<IntegrationsData>('/integrations'),
   disconnectGitHub: () => apiRequest<void>('/integrations/github', { method: 'DELETE' }),
-  syncGitHub: () => apiRequest<{ message: string }>('/integrations/github/sync', { method: 'POST' }),
+  syncGitHub: (options?: { fullSync?: boolean }) =>
+    apiRequest<{ message: string }>('/integrations/github/sync', {
+      method: 'POST',
+      body: options ? JSON.stringify(options) : undefined,
+    }),
 };
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -287,6 +291,12 @@ export interface ReportEditData {
   timeBlocks?: TimeBlock[] | null;
 }
 
+export interface GitHubOrganization {
+  login: string;
+  avatarUrl: string;
+  description: string | null;
+}
+
 export interface IntegrationsData {
   github:
     | {
@@ -296,8 +306,10 @@ export interface IntegrationsData {
         connectedAt: string;
         lastSyncedAt: string | null;
         needsReconnect: boolean;
+        organizations?: GitHubOrganization[];
+        clientId?: string;
       }
-    | { connected: false };
+    | { connected: false; clientId?: string };
 }
 
 export interface UserSettings {
