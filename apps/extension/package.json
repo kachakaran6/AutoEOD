@@ -1,12 +1,13 @@
 {
   "name": "@autoeod/extension",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite build --watch --mode development",
     "build": "vite build && npm run build:scripts",
-    "build:scripts": "vite build --config vite.scripts.config.ts"
+    "build:scripts": "vite build --config vite.scripts.config.ts",
+    "version": "node -e \"const fs=require('fs'); const v=require('./package.json').version; const m=JSON.parse(fs.readFileSync('public/manifest.json')); m.version=v; fs.writeFileSync('public/manifest.json', JSON.stringify(m,null,2)+'\\n');\""
   },
   "dependencies": {
     "idb": "^8.0.0",

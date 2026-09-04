@@ -41,11 +41,25 @@ export async function getApiToken(): Promise<string | null> {
   return result.apiToken || null;
 }
 
-export async function getApiEndpoint(): Promise<string> {
+export async function getApiBaseUrl(): Promise<string> {
   if (import.meta.env.DEV) {
-    return 'http://localhost:3001/api/extension/browser-activity';
+    return 'http://localhost:3001';
   }
   const config = await fetchRemoteConfig();
-  const baseUrl = config.api_base_url.replace(/\/$/, '');
+  return (config.api_base_url || FALLBACK_API_BASE_URL).replace(/\/$/, '');
+}
+
+export async function getBrowserActivityEndpoint(): Promise<string> {
+  const baseUrl = await getApiBaseUrl();
   return `${baseUrl}/api/extension/browser-activity`;
+}
+
+export async function getExtensionSettingsEndpoint(): Promise<string> {
+  const baseUrl = await getApiBaseUrl();
+  return `${baseUrl}/api/extension-settings`;
+}
+
+// Backwards-compatible alias
+export async function getApiEndpoint(): Promise<string> {
+  return getBrowserActivityEndpoint();
 }

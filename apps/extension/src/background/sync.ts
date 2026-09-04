@@ -1,5 +1,5 @@
 import { getPendingPayloads, removePayload, updatePayloadRetry, SyncPayload } from './storage';
-import { getApiToken, getApiEndpoint } from '../lib/api';
+import { getApiToken, getBrowserActivityEndpoint } from '../lib/api';
 
 const MAX_RETRIES = 10;
 const BASE_BACKOFF_MS = 5000;
@@ -55,14 +55,7 @@ export async function processQueue() {
 
 async function sendToServer(activities: SyncPayload[], token: string): Promise<boolean> {
   try {
-    // Determine API base url
-    let endpoint = getApiEndpoint();
-    // Swap the old endpoint path to the new one if it ends with /activity
-    if (endpoint.endsWith('/activity')) {
-      endpoint = endpoint.replace('/activity', '/browser-activity');
-    } else {
-      endpoint = `${endpoint}/browser-activity`;
-    }
+    const endpoint = await getBrowserActivityEndpoint();
 
     const res = await fetch(endpoint, {
       method: 'POST',

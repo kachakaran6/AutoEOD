@@ -1,6 +1,6 @@
 import { enqueuePayload } from './storage';
 import { processQueue, updateBadge } from './sync';
-import { getApiToken, getApiEndpoint } from '../lib/api';
+import { getApiToken, getExtensionSettingsEndpoint } from '../lib/api';
 
 interface ActiveTabState {
   tabId: number;
@@ -27,12 +27,7 @@ async function fetchExtensionSettings() {
   if (!token) return;
 
   try {
-    let endpoint = getApiEndpoint();
-    if (endpoint.endsWith('/activity')) {
-      endpoint = endpoint.replace('/extension/activity', '/extension-settings');
-    } else {
-      endpoint = `${endpoint}/extension-settings`;
-    }
+    const endpoint = await getExtensionSettingsEndpoint();
 
     const res = await fetch(endpoint, {
       headers: { Authorization: `Bearer ${token}` },

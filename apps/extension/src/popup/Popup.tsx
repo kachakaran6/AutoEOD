@@ -55,13 +55,18 @@ export default function Popup() {
 
   return (
     <div className="w-80 p-4 bg-zinc-950 text-zinc-50 font-sans">
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-zinc-800">
-        {token ? (
-          <ShieldCheck className="w-6 h-6 text-green-500" />
-        ) : (
-          <ShieldAlert className="w-6 h-6 text-zinc-500" />
-        )}
-        <h1 className="text-base font-semibold tracking-tight">AutoEOD Capture</h1>
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+        <div className="flex items-center gap-2">
+          {token ? (
+            <ShieldCheck className="w-6 h-6 text-green-500" />
+          ) : (
+            <ShieldAlert className="w-6 h-6 text-zinc-500" />
+          )}
+          <h1 className="text-base font-semibold tracking-tight">AutoEOD Capture</h1>
+        </div>
+        <span className="text-[11px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+          v{chrome.runtime?.getManifest?.()?.version || '1.0.5'}
+        </span>
       </div>
 
       {!token ? (
