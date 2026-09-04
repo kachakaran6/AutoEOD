@@ -166,10 +166,41 @@ See [`.env.example`](.env.example) for a full breakdown of all configuration key
 | `npm run dev:web` | Starts the Vite React frontend development server |
 | `npm run build:backend` | Compiles `@autoeod/db`, `@autoeod/api`, and `@autoeod/worker` |
 | `npm run build:web` | Compiles the production Vite bundle for `@autoeod/web` |
+| `npm run build:extension` | Compiles the Chrome extension bundle (`apps/extension/dist`) |
 | `npm run build:all` | Compiles all packages and applications |
 | `npm run db:generate` | Generates the Prisma client from `schema.prisma` |
 | `npm run db:migrate` | Runs database migrations |
 | `npm run db:studio` | Opens Prisma Studio GUI in browser |
+
+---
+
+## 📦 Automated Extension Releases
+
+AutoEOD uses a tag-triggered **GitHub Actions release pipeline** (`.github/workflows/release-extension.yml`).
+
+Whenever a tag starting with `v` or `extension-v` is pushed:
+1. GitHub Actions checks out the repository and installs dependencies.
+2. Builds the extension into `apps/extension/dist`.
+3. Packages the extension into `autoeod-extension-<version>.zip` and `autoeod-extension.zip`.
+4. Computes SHA-256 checksums (`.sha256`).
+5. Automatically creates or updates the GitHub Release with generated release notes and attached ZIP assets.
+
+### How to Publish a New Extension Release
+
+Commit and push your changes, then tag and push:
+
+```bash
+git add .
+git commit -m "chore(extension): bump version to 1.0.5"
+git push origin master
+
+# Create and push a version tag
+git tag v1.0.5
+git push origin v1.0.5
+```
+
+You can also manually trigger the build from the **Actions** tab on GitHub using **Run workflow** (via `workflow_dispatch`).
+
 
 ---
 
