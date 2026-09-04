@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "AutoEOD \u2014 Activity Radar",
-  "version": "1.0.5",
+  "name": "AutoEOD — Activity Radar",
+  "version": "1.0.7",
   "description": "Universal browser activity capture for your AutoEOD daily report.",
-  "permissions": ["storage", "alarms", "tabs"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs"
+  ],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:3001/*",
@@ -18,7 +22,9 @@
       "matches": [
         "<all_urls>"
       ],
-      "js": ["content-script.js"],
+      "js": [
+        "content-script.js"
+      ],
       "run_at": "document_idle"
     }
   ],
