@@ -13,8 +13,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  ArrowRight,
+  ExternalLink,
+  Globe,
+  Download,
+  FileText,
+  ChevronRight,
 } from 'lucide-react'
-import { dashboard, reports } from '@/lib/api'
+import { dashboard, reports, activity } from '@/lib/api'
 import { analytics } from '@/lib/analytics'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,6 +38,22 @@ export function DashboardPage() {
     queryFn: dashboard.getToday,
     refetchInterval: 60_000,
   })
+
+  const todayDateStr = data?.date || format(new Date(), 'yyyy-MM-dd')
+
+  const { data: activityData, isLoading: isActivityLoading } = useQuery({
+    queryKey: ['activity', todayDateStr],
+    queryFn: () => activity.getByDate(todayDateStr),
+    enabled: !!data?.date,
+  })
+
+  const { data: reportsList } = useQuery({
+    queryKey: ['reports', 'list'],
+    queryFn: reports.list,
+  })
+
+  const activityEvents = activityData?.events || []
+  const recentReports = reportsList || []
 
   const generateMutation = useMutation({
     mutationFn: reports.generate,
@@ -271,8 +293,210 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Row 3: Activity Stream & Ecosystem Widgets ─────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left (2 cols): Today's Live Activity Stream */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <GitCommitHorizontal className="h-4 w-4 text-violet-400" />
+                Today's Activity Stream
+              </CardTitle>
+              <CardDescription>
+                Live commits, pull requests, and events captured today
+              </CardDescription>
+            </div>
+            {activityEvents.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground gap-1"
+                onClick={() => navigate('/timeline')}
+              >
+                View Timeline <ArrowRight className="h-3 w-3" />
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {isActivityLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            ) : activityEvents.length > 0 ? (
+              <div className="space-y-2.5">
+                {activityEvents.slice(0, 5).map((event) => (
+                  <div
+                    key={event.id}
+                    className="p-3 rounded-xl bg-muted/40 border border-border/70 flex items-center justify-between gap-3 hover:border-border transition-colors text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                        {getEventIcon(event.type)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground truncate">{event.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground font-mono">
+                          <span className="text-primary font-medium">{event.repo}</span>
+                          <span>•</span>
+                          <span>{formatDistanceToNow(new Date(event.occurredAt), { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {event.url && (
+                      <a
+                        href={event.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors"
+                        title="View on GitHub"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+                {activityEvents.length > 5 && (
+                  <div className="pt-2 text-center">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-xs text-muted-foreground hover:text-primary"
+                      onClick={() => navigate('/timeline')}
+                    >
+                      + {activityEvents.length - 5} more events captured today →
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                  <GitCommitHorizontal className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-medium text-foreground">No events recorded yet today</p>
+                <p className="text-[11px] text-muted-foreground max-w-xs">
+                  Commits and PRs from your linked GitHub repos will appear here as soon as you push code.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right (1 col): Browser Extension & Recent Reports Widgets */}
+        <div className="space-y-6">
+          {/* Activity Radar Extension Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-emerald-400" />
+                  Activity Radar
+                </CardTitle>
+                <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  Extension
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                Captures ChatGPT context & dev documentation
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/70 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 text-foreground font-medium text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Browser Capture Active
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Enriches your standup reports by including ChatGPT discussion topics and research tabs.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center gap-2 text-xs"
+                  asChild
+                >
+                  <a
+                    href="https://github.com/kachakaran6/AutoEOD/releases/latest/download/autoeod-extension.zip"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download className="h-3.5 w-3.5 text-primary" />
+                    Download Extension (.zip)
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => navigate('/integrations')}
+                >
+                  Configure in Integrations →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Reports List */}
+          {recentReports.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-400" />
+                    Recent Reports
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate('/history')}
+                  >
+                    All History →
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-1">
+                {recentReports.slice(0, 3).map((rep) => (
+                  <div
+                    key={rep.id}
+                    onClick={() => navigate(`/reports/${rep.reportDate}`)}
+                    className="p-2.5 rounded-lg bg-muted/30 border border-border/60 hover:border-border hover:bg-muted/50 transition-all flex items-center justify-between gap-2 cursor-pointer text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-medium text-foreground">
+                        {rep.reportDate}
+                      </span>
+                      <ReportStatusBadge status={rep.status} />
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
+}
+
+function getEventIcon(type: string) {
+  switch (type) {
+    case 'commit': return <GitCommitHorizontal className="h-3.5 w-3.5 text-violet-400" />
+    case 'pull_request': return <GitPullRequest className="h-3.5 w-3.5 text-indigo-400" />
+    case 'pr_review': return <Star className="h-3.5 w-3.5 text-amber-400" />
+    case 'issue': return <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+    case 'issue_comment': return <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+    case 'chatgpt_conversation': return <Globe className="h-3.5 w-3.5 text-emerald-400" />
+    default: return <GitCommitHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+  }
 }
 
 function StatCard({
