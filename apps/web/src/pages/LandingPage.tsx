@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { ExtensionInstallSection } from '@/components/landing/ExtensionInstallSection'
 
 export function LandingPage() {
   const { theme, setTheme } = useTheme()
@@ -79,6 +80,7 @@ export function LandingPage() {
           <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#interactive-demo" className="hover:text-foreground transition-colors">Live Preview</a>
+            <a href="#extension-install" className="hover:text-foreground transition-colors text-rose-500 font-semibold">Extension Setup</a>
             <a href="#architecture" className="hover:text-foreground transition-colors">Architecture</a>
             <a href="#roadmap" className="hover:text-foreground transition-colors">Roadmap</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">Open Source</a>
@@ -383,6 +385,9 @@ export function LandingPage() {
         </Card>
       </section>
 
+      {/* ── Browser Radar Extension Installation Video Walkthrough (1.5x Speed) ─── */}
+      <ExtensionInstallSection />
+
       {/* ── Core Features Grid (Authentic & Accurate) ─────────────────── */}
       <section id="features" className="relative z-10 py-20 px-4 sm:px-6 max-w-7xl mx-auto border-t border-border/50">
         <div className="text-center mb-16">
@@ -421,6 +426,10 @@ export function LandingPage() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Lightweight Chrome/Firefox/Brave extension captures coding documentation research tabs and ChatGPT discussion topics while strictly filtering out noise and private browsing.
               </p>
+              <a href="#extension-install" className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 hover:text-rose-600 transition-colors pt-1">
+                <span>Watch 60s setup walkthrough</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
             </CardContent>
           </Card>
 

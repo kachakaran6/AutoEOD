@@ -301,12 +301,20 @@ export function IntegrationsPage() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Download the latest <code className="text-xs bg-muted border border-border px-1 py-0.5 rounded text-foreground">autoeod-extension.zip</code> file from our GitHub Releases page and extract it to a folder on your computer.
                 </p>
-                <Button variant="outline" size="sm" asChild>
-                  <a href="https://github.com/kachakaran6/AutoEOD/releases/download/v1/autoeod-extension.zip" target="_blank" rel="noopener noreferrer">
-                    <Github className="w-4 h-4 mr-2" />
-                    Download Extension (.zip)
-                  </a>
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="https://github.com/kachakaran6/AutoEOD/releases/latest/download/autoeod-extension.zip" target="_blank" rel="noopener noreferrer">
+                      <Github className="w-4 h-4 mr-2" />
+                      Download Extension (.zip)
+                    </a>
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href="https://github.com/kachakaran6/AutoEOD/releases/latest" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground">
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                      View Release
+                    </a>
+                  </Button>
+                </div>
               </div>
 
               <div className="bg-muted/30 border border-border p-4 rounded-lg">
