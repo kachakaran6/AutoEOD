@@ -45,37 +45,41 @@ jobs:
           elif [[ "${GITHUB_REF_NAME:-}" == v* ]] || [[ "${GITHUB_REF_NAME:-}" == extension-v* ]]; then
             RELEASE_TAG="${GITHUB_REF_NAME}"
           else
-            EXT_VER=$(node -p "require('./apps/extension/package.json').version")
+            EXT_VER=$(node -p "JSON.parse(require('fs').readFileSync('./apps/extension/package.json', 'utf8')).version")
             RELEASE_TAG="v${EXT_VER}"
           fi
 
           VERSION="${RELEASE_TAG#extension-v}"
           VERSION="${VERSION#v}"
 
+          export VERSION
           echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
           echo "Packaging extension version: ${VERSION} (Tag: ${RELEASE_TAG})"
 
           # Sync version to apps/extension/package.json and apps/extension/public/manifest.json BEFORE building
-          node -e "
-            const fs = require('fs');
-            const targetVer = process.env.VERSION;
+          node -e '
+            const fs = require("fs");
+            const targetVer = process.argv[1] || process.env.VERSION;
+            if (!targetVer) {
+              throw new Error("Target version is missing!");
+            }
 
             // 1. Update apps/extension/package.json
-            const pkgPath = 'apps/extension/package.json';
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            const pkgPath = "apps/extension/package.json";
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
             pkg.version = targetVer;
-            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-            console.log('✓ Synced ' + pkgPath + ' to version ' + targetVer);
+            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+            console.log(`✓ Synced ${pkgPath} to version ${targetVer}`);
 
             // 2. Update apps/extension/public/manifest.json
-            const manifestPath = 'apps/extension/public/manifest.json';
-            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const manifestPath = "apps/extension/public/manifest.json";
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
             manifest.version = targetVer;
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-            console.log('✓ Synced ' + manifestPath + ' to version ' + targetVer);
-          "
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+            console.log(`✓ Synced ${manifestPath} to version ${targetVer}`);
+          ' "$VERSION"
 
       - name: Build extension
         run: npm run build --workspace=apps/extension
@@ -89,7 +93,7 @@ jobs:
             exit 1
           fi
 
-          DIST_VER=$(node -p "require('./apps/extension/dist/manifest.json').version")
+          DIST_VER=$(node -p "JSON.parse(require('fs').readFileSync('apps/extension/dist/manifest.json', 'utf8')).version")
           if [ "$DIST_VER" != "$VERSION" ]; then
             echo "Error: Built manifest version ($DIST_VER) does not match expected version ($VERSION)!" >&2
             exit 1
@@ -124,18 +128,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           TARGET_BRANCH="master"
-          # Fetch target branch if available
           git fetch origin "$TARGET_BRANCH" || true
 
-          # Check if origin has different version
-          ORIGIN_PKG_VER=$(git show "origin/${TARGET_BRANCH}:apps/extension/package.json" 2>/dev/null | node -p "try { JSON.parse(require('fs').readFileSync(0, 'utf-8')).version } catch(e) { '' }" || echo "")
+          # Preserve updated files
+          cp apps/extension/package.json /tmp/pkg.json
+          cp apps/extension/public/manifest.json /tmp/manifest.json
 
-          if [ "$ORIGIN_PKG_VER" != "$VERSION" ]; then
-            echo "Attempting to push version bump to $TARGET_BRANCH..."
-            git checkout "$TARGET_BRANCH" || git checkout -b "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
-            git checkout "${GITHUB_SHA:-HEAD}" -- apps/extension/package.json apps/extension/public/manifest.json
+          # Switch to target branch
+          git checkout "$TARGET_BRANCH" || git checkout -b "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          # Restore updated files onto target branch
+          cp /tmp/pkg.json apps/extension/package.json
+          cp /tmp/manifest.json apps/extension/public/manifest.json
+
+          if ! git diff --quiet apps/extension/package.json apps/extension/public/manifest.json; then
+            echo "Committing version bump to $TARGET_BRANCH..."
             git add apps/extension/package.json apps/extension/public/manifest.json
-            git commit -m "chore(extension): bump version to ${VERSION} [skip ci]" || echo "No changes to commit"
+            git commit -m "chore(extension): bump version to ${VERSION} [skip ci]"
             git push origin "$TARGET_BRANCH" || echo "Branch push skipped (may have branch protections)"
           else
             echo "Branch $TARGET_BRANCH already matches version $VERSION."
