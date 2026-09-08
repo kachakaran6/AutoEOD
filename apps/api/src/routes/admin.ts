@@ -98,13 +98,33 @@ adminRouter.get('/observability/overview', async (_req: Request, res: Response):
 
     // Background job queue counts
     const queueCounts: Record<string, any> = {};
+    let totalCompletedJobs = 0;
+    let totalFailedJobs = 0;
     for (const [name, q] of Object.entries(queueInstances)) {
       try {
-        queueCounts[name] = await q.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
+        const counts = await q.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
+        queueCounts[name] = counts;
+        totalCompletedJobs += (counts.completed || 0);
+        totalFailedJobs += (counts.failed || 0);
       } catch {
         queueCounts[name] = { active: 0, completed: 0, failed: 0, delayed: 0, waiting: 0 };
       }
     }
+
+    // Accurate today's AI calls from reports and audit events
+    const todayMidnight = new Date(new Date().setHours(0, 0, 0, 0));
+    const [aiReportsToday, aiAuditEventsToday] = await Promise.all([
+      prisma.report.count({
+        where: { generatedAt: { gte: todayMidnight } },
+      }),
+      prisma.auditEvent.count({
+        where: {
+          timestamp: { gte: todayMidnight },
+          OR: [{ category: 'ai' }, { action: { startsWith: 'AI_' } }],
+        },
+      }),
+    ]);
+    const realAiCallsToday = Math.max(metricsSnapshot.ai.total, aiReportsToday, aiAuditEventsToday);
 
     res.json({
       systemHealth: {
@@ -121,10 +141,10 @@ adminRouter.get('/observability/overview', async (_req: Request, res: Response):
       usage: {
         totalUsers: activeUsersCount,
         reportsToday: reportsTodayCount,
-        aiCalls: metricsSnapshot.ai.total,
+        aiCalls: realAiCallsToday,
         aiFallbacks: metricsSnapshot.ai.fallbacks,
-        backgroundJobs: metricsSnapshot.jobs.total,
-        failedJobs: metricsSnapshot.jobs.failed,
+        backgroundJobs: Math.max(metricsSnapshot.jobs.total, totalCompletedJobs),
+        failedJobs: Math.max(metricsSnapshot.jobs.failed, totalFailedJobs),
       },
       security: {
         securityEventsToday: securityEventsTodayCount,
@@ -701,8 +721,28 @@ adminRouter.get('/ai', async (_req: Request, res: Response): Promise<void> => {
     const successfulReports = totalReports - failedReports;
     const successRate = totalReports > 0 ? Number(((successfulReports / totalReports) * 100).toFixed(1)) : 100;
 
-    // AI specific log events from log store
-    const aiLogs = logStore.query({ category: 'ai', limit: 100 }).logs;
+    // AI specific log events: in-memory log store + persistent AuditEvents
+    const aiLogs = logStore.query({ category: 'ai', limit: 50 }).logs;
+    const dbAiEvents = await prisma.auditEvent.findMany({
+      where: {
+        OR: [{ category: 'ai' }, { action: { startsWith: 'AI_' } }],
+      },
+      take: 50,
+      orderBy: { timestamp: 'desc' },
+    });
+
+    const mappedDbAiLogs = dbAiEvents.map((e) => ({
+      id: e.id,
+      timestamp: e.timestamp.toISOString(),
+      level: e.status === 'FAILURE' ? ('error' as const) : ('info' as const),
+      service: 'worker',
+      category: 'ai',
+      action: e.action,
+      message: `[AI ${e.action}] ${e.details ? (typeof e.details === 'string' ? e.details : JSON.stringify(e.details)) : ''}`,
+      details: (e.details as Record<string, any>) || {},
+    }));
+
+    const combinedAiLogs = [...aiLogs, ...mappedDbAiLogs].slice(0, 100);
 
     res.json({
       config: {
@@ -720,7 +760,7 @@ adminRouter.get('/ai', async (_req: Request, res: Response): Promise<void> => {
         estimatedTokensUsed: totalReports * 850 + totalTimelineSummaries * 220,
       },
       modelBreakdown: breakdown.length > 0 ? breakdown : [{ model: primaryModel, count: totalReports, percentage: 100 }],
-      recentAiLogs: aiLogs,
+      recentAiLogs: combinedAiLogs,
     });
   } catch (err: any) {
     logger.error({ err }, 'Failed to fetch AI observability metrics');
@@ -736,7 +776,14 @@ adminRouter.get('/integrations/stats', async (_req: Request, res: Response): Pro
       prisma.emailConnection.count({ where: { provider: 'google' } }),
       prisma.emailConnection.count({ where: { provider: 'zoho' } }),
       prisma.auditEvent.findMany({
-        where: { category: 'integration' },
+        where: {
+          OR: [
+            { category: 'integration' },
+            { action: { contains: 'GITHUB' } },
+            { action: { contains: 'SYNC' } },
+            { action: { contains: 'OAUTH' } },
+          ],
+        },
         take: 50,
         orderBy: { timestamp: 'desc' },
       }),
@@ -763,10 +810,19 @@ adminRouter.get('/email/logs', async (req: Request, res: Response): Promise<void
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const skip = (page - 1) * limit;
 
+    const emailFilter = {
+      OR: [
+        { category: 'email' },
+        { action: { startsWith: 'EMAIL_' } },
+        { action: { contains: 'SEND_REPORT' } },
+        { action: { contains: 'REMINDER' } },
+      ],
+    };
+
     const [total, events] = await Promise.all([
-      prisma.auditEvent.count({ where: { category: 'email' } }),
+      prisma.auditEvent.count({ where: emailFilter }),
       prisma.auditEvent.findMany({
-        where: { category: 'email' },
+        where: emailFilter,
         skip,
         take: limit,
         orderBy: { timestamp: 'desc' },
@@ -1529,5 +1585,55 @@ adminRouter.get('/audit-logs', async (req: Request, res: Response): Promise<void
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+// ── 25. PLATFORM ANALYTICS & HISTORICAL TRENDS ────────────────────────────────
+adminRouter.get('/analytics', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [
+      totalUsers,
+      totalReports,
+      totalActivityEvents,
+      totalBrowserLogs,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.report.count(),
+      prisma.activityEvent.count(),
+      prisma.browserActivityLog.count(),
+    ]);
+
+    const metricsSnapshot = metricsEngine.getSnapshot();
+    const reqStats = metricsSnapshot.requests;
+    const totalReqs = reqStats.total;
+
+    let p2xx = 100;
+    let p4xx = 0;
+    let p5xx = 0;
+
+    if (totalReqs > 0) {
+      p2xx = Number(((reqStats.status2xx / totalReqs) * 100).toFixed(1));
+      p4xx = Number(((reqStats.status4xx / totalReqs) * 100).toFixed(1));
+      p5xx = Number(((reqStats.status5xx / totalReqs) * 100).toFixed(1));
+    }
+
+    res.json({
+      metrics: {
+        totalUsers,
+        totalReports,
+        totalActivityEvents,
+        totalBrowserLogs,
+        estimatedApiReqs: totalReqs,
+        avgResponseMs: metricsSnapshot.latency.avg,
+        statusDistribution: {
+          '2xx_success': p2xx,
+          '4xx_client': p4xx,
+          '5xx_server': p5xx,
+        },
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'Failed to fetch platform analytics');
+    res.status(500).json({ error: 'Failed to fetch platform analytics' });
   }
 });

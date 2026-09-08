@@ -5,6 +5,7 @@
 import { prisma } from '@autoeod/db';
 import { decrypt } from '../lib/crypto';
 import { logger } from '../lib/logger';
+import { recordAuditLog } from '../lib/audit';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -521,8 +522,29 @@ export async function syncGitHubActivity(userId: string, options?: SyncGitHubOpt
       { userId, username, totalEventsFound: allEvents.length, upsertedCount, newestCursor: newestCursorDate.toISOString() },
       'Multi-source GitHub sync complete'
     );
+
+    await recordAuditLog({
+      action: 'GITHUB_SYNC_COMPLETED',
+      userId,
+      category: 'integration',
+      level: 'info',
+      details: {
+        username,
+        totalEventsFound: allEvents.length,
+        upsertedCount,
+      },
+    });
   } catch (err) {
     logger.error({ err, userId }, 'GitHub sync failed unexpectedly');
+    await recordAuditLog({
+      action: 'GITHUB_SYNC_FAILED',
+      userId,
+      category: 'integration',
+      level: 'error',
+      details: {
+        error: err instanceof Error ? err.message : String(err),
+      },
+    }).catch(() => {});
     throw err;
   }
 }

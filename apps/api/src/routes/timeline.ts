@@ -223,10 +223,14 @@ Example: { "session_id_1": "Reviewed PR for feature X", "session_id_2": "Browsed
     const candidateModels = [
       process.env.OPENAI_MODEL,
       process.env.OPENAI_FALLBACK_MODEL,
-      'minimax/minimax-m3:free',
-      'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-      'openrouter/free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'qwen/qwen-2.5-72b-instruct:free',
+      'deepseek/deepseek-chat:free',
+      'google/gemini-2.0-flash-exp:free',
+      'mistralai/mistral-small-24b-instruct-2501:free',
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'qwen/qwen-2.5-coder-32b-instruct:free',
+      'google/gemma-2-9b-it:free',
     ].filter(Boolean) as string[];
     const modelCascade = [...new Set(candidateModels)];
 

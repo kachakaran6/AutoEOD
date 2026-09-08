@@ -58,23 +58,13 @@ const ReportOutputSchema = z.object({
 
 type ReportOutput = z.infer<typeof ReportOutputSchema>;
 
-// Model preference & fallback cascade
-const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'minimax/minimax-m3:free';
+import { smartModelRouter } from '../lib/ai/smartModelRouter';
 
-export function getModelCascade(): string[] {
-  const models = [
-    process.env.OPENAI_MODEL,
-    'minimax/minimax-m3:free',
-    'minimax/minimax-m2.7:free',
-    'openrouter/free',
-    'google/gemma-4-31b-it:free',
-    'google/gemma-4-26b-a4b-it:free',
-    'nvidia/nemotron-3.5-lightning:free',
-    'z-ai/glm-5.2:free',
-    'cohere/north-mini-code:free',
-    process.env.OPENAI_FALLBACK_MODEL,
-  ].filter(Boolean) as string[];
-  return [...new Set(models)];
+// Model preference & fallback cascade
+const PREFERRED_MODEL = process.env.OPENAI_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+
+export async function getModelCascade(): Promise<string[]> {
+  return smartModelRouter.getModelCascade(PREFERRED_MODEL);
 }
 
 function repairAndParseJson(raw: string): any {
@@ -613,7 +603,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
   );
 
   // Execute AI generation with multi-model fallback cascade
-  const modelCascade = getModelCascade();
+  const modelCascade = await getModelCascade();
   const primaryModel = modelCascade[0] || PREFERRED_MODEL;
   let reportOutput: ReportOutput | null = null;
   let usedModel = primaryModel;
@@ -631,6 +621,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
         logger.info({ userId, reportDate, primaryModel, usedModel, attempt: i + 1 }, 'AI model fallback succeeded');
         await recordAuditLog({
           action: 'AI_MODEL_FALLBACK_TRIGGERED',
+          category: 'ai',
           userId,
           level: 'warn',
           details: {
@@ -645,6 +636,19 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     } catch (err: any) {
       lastError = err;
       logger.warn({ err: err?.message, userId, reportDate, model: currentModel, attempt: i + 1 }, 'Model failed in cascade, attempting next fallback');
+      
+      // Mark failure in router (applies cooldown & detects replacement slug if recommended by OpenRouter)
+      const suggestedSlug = smartModelRouter.markModelFailure(currentModel, err);
+      if (suggestedSlug && !modelCascade.includes(suggestedSlug)) {
+        try {
+          logger.info({ suggestedSlug }, 'Attempting recommended replacement slug from OpenRouter');
+          reportOutput = await callOpenAI(prompt, suggestedSlug);
+          usedModel = suggestedSlug;
+          break;
+        } catch (slugErr: any) {
+          smartModelRouter.markModelFailure(suggestedSlug, slugErr);
+        }
+      }
     }
   }
 
@@ -653,6 +657,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
     
     await recordAuditLog({
       action: 'AI_REPORT_FAILED',
+      category: 'ai',
       userId,
       level: 'error',
       details: {
@@ -729,6 +734,7 @@ export async function generateReport(data: GenerateReportJobData): Promise<void>
   // Record successful audit log
   await recordAuditLog({
     action: 'AI_REPORT_GENERATED',
+    category: 'ai',
     userId,
     level: 'info',
     details: {

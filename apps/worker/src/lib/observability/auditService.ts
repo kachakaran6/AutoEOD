@@ -18,11 +18,29 @@ export class WorkerAuditService {
   }): Promise<void> {
     try {
       const sanitized = params.details ? redactSensitiveData(params.details) : undefined;
+      let resolvedCategory = params.category;
+      if (!resolvedCategory) {
+        const a = params.action.toUpperCase();
+        if (a.includes('GITHUB') || a.includes('SYNC') || a.includes('INTEGRATION') || a.includes('OAUTH')) {
+          resolvedCategory = 'integration';
+        } else if (a.includes('EMAIL') || a.includes('SEND_REPORT') || a.includes('REMINDER')) {
+          resolvedCategory = 'email';
+        } else if (a.includes('AI_') || a.includes('MODEL') || a.includes('FALLBACK')) {
+          resolvedCategory = 'ai';
+        } else if (a.includes('REPORT')) {
+          resolvedCategory = 'report';
+        } else if (a.includes('AUTH') || a.includes('LOGIN')) {
+          resolvedCategory = 'auth';
+        } else {
+          resolvedCategory = 'system';
+        }
+      }
+
       await prisma.auditEvent.create({
         data: {
           action: params.action,
           actorId: params.actorId,
-          category: params.category || 'system',
+          category: resolvedCategory,
           resource: params.resource,
           resourceId: params.resourceId,
           status: params.status || 'SUCCESS',

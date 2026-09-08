@@ -61,7 +61,7 @@ export interface LogQueryResult {
 
 class LogStore {
   private buffer: StructuredLog[] = [];
-  private maxCapacity = 10000;
+  private maxCapacity = parseInt(process.env.LOG_STORE_CAPACITY || '50000', 10);
   private logDir = path.resolve(process.cwd(), 'logs');
   private currentLogDate = '';
   private fileWriteStream: fs.WriteStream | null = null;

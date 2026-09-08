@@ -5,6 +5,7 @@ import { logger } from './logger';
 export async function recordAuditLog(params: {
   action: string;
   userId?: string;
+  category?: 'auth' | 'user' | 'report' | 'integration' | 'ai' | 'email' | 'system';
   level?: 'info' | 'warn' | 'error';
   details?: Record<string, any>;
 }) {
@@ -13,6 +14,7 @@ export async function recordAuditLog(params: {
   await WorkerAuditService.recordEvent({
     action: params.action,
     actorId: params.userId,
+    category: params.category,
     status: params.level === 'error' ? 'FAILURE' : 'SUCCESS',
     details: params.details,
   });

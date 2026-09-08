@@ -204,7 +204,7 @@ export default function LogsExplorerPage() {
       {/* Logs Table / Stream */}
       <Card className="border-border/60 bg-card/60 backdrop-blur-sm overflow-hidden">
         <div className="p-3.5 border-b border-border/60 flex items-center justify-between text-xs text-muted-foreground bg-muted/20">
-          <span>Found <strong className="text-foreground">{total}</strong> structured log entries</span>
+          <span>Found <strong className="text-foreground">{total.toLocaleString()}</strong> live log stream entries {total >= 10000 && <span className="text-[10px] text-muted-foreground/75 font-sans">(latest in-memory buffer; older logs archived to /logs)</span>}</span>
           <span className="font-mono text-[11px]">Page {page} of {totalPages}</span>
         </div>
 
