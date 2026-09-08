@@ -39,7 +39,7 @@ export default function DatabaseHealthPage() {
   }, []);
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-8 w-full animate-in fade-in duration-300">
       {/* Top Bar */}
       <div className="flex items-center justify-between">
         <Button

@@ -52,7 +52,7 @@ export default function BackgroundJobsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-8 w-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -121,7 +121,7 @@ export default function BackgroundJobsPage() {
               </span>
             </div>
 
-            <div className="divide-y divide-border/40 font-mono text-xs">
+            <div className="divide-y divide-border/40 font-mono text-xs max-h-[500px] overflow-y-auto">
               {q.recentJobs.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">No recent jobs in this queue.</div>
               ) : (

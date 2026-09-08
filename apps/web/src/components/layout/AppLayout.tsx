@@ -33,7 +33,7 @@ export function AppLayout() {
           onToggleMobileNav={() => setMobileNavOpen((prev) => !prev)}
         />
         <main className="flex-1 overflow-y-auto">
-          <div className="p-3.5 sm:px-6 sm:py-6 animate-fade-in max-w-7xl mx-auto w-full">
+          <div className="p-3.5 sm:px-6 sm:py-6 animate-fade-in w-full">
             <Outlet />
           </div>
         </main>

@@ -665,16 +665,16 @@ export function AdminPage() {
                 Loading users...
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-auto max-h-[580px] rounded-xl border border-border">
                 <table className="w-full text-left text-xs text-foreground">
-                  <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border">
+                  <thead className="bg-muted/95 backdrop-blur-xs text-muted-foreground uppercase tracking-wider font-semibold border-b border-border sticky top-0 z-10">
                     <tr>
-                      <th className="py-3 px-4">User</th>
-                      <th className="py-3 px-4">Role</th>
-                      <th className="py-3 px-4">Joined Date</th>
-                      <th className="py-3 px-4">Reports</th>
-                      <th className="py-3 px-4">Events</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 bg-muted/95">User</th>
+                      <th className="py-3 px-4 bg-muted/95">Role</th>
+                      <th className="py-3 px-4 bg-muted/95">Joined Date</th>
+                      <th className="py-3 px-4 bg-muted/95">Reports</th>
+                      <th className="py-3 px-4 bg-muted/95">Events</th>
+                      <th className="py-3 px-4 text-right bg-muted/95">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
@@ -1277,15 +1277,15 @@ export function AdminPage() {
                     No AI generation events logged yet. Trigger an EOD report to see live diagnostics.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[580px] rounded-xl border border-border">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px]">
+                      <thead className="bg-muted/95 backdrop-blur-xs text-muted-foreground uppercase tracking-wider font-semibold border-b border-border text-[10px] sticky top-0 z-10">
                         <tr>
-                          <th className="py-2.5 px-3">Timestamp</th>
-                          <th className="py-2.5 px-3">Event</th>
-                          <th className="py-2.5 px-3">User</th>
-                          <th className="py-2.5 px-3">Model / Metrics</th>
-                          <th className="py-2.5 px-3 text-right">Details</th>
+                          <th className="py-2.5 px-3 bg-muted/95">Timestamp</th>
+                          <th className="py-2.5 px-3 bg-muted/95">Event</th>
+                          <th className="py-2.5 px-3 bg-muted/95">User</th>
+                          <th className="py-2.5 px-3 bg-muted/95">Model / Metrics</th>
+                          <th className="py-2.5 px-3 text-right bg-muted/95">Details</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60 text-[11px]">

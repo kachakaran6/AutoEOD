@@ -38,7 +38,7 @@ export default function SchedulerLogsPage() {
   }, []);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-8 w-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -69,14 +69,14 @@ export default function SchedulerLogsPage() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[400px] relative">
           <table className="w-full text-xs font-mono text-left divide-y divide-border/60">
-            <thead className="bg-muted/30 text-muted-foreground uppercase text-[10px] tracking-wider">
+            <thead className="bg-muted/95 backdrop-blur-md text-muted-foreground uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-border/60">
               <tr>
-                <th className="px-4 py-3">Queue & Job Name</th>
-                <th className="px-4 py-3">Cron / Interval</th>
-                <th className="px-4 py-3">Next Scheduled Run</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Queue & Job Name</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Cron / Interval</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Next Scheduled Run</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">

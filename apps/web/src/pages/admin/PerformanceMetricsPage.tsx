@@ -56,7 +56,7 @@ export default function PerformanceMetricsPage() {
   const lat = data?.latency || { avg: 0, p50: 0, p75: 0, p90: 0, p95: 0, p99: 0 };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -145,18 +145,18 @@ export default function PerformanceMetricsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[600px] relative">
           <table className="w-full text-xs font-mono text-left divide-y divide-border/60">
-            <thead className="bg-muted/30 text-muted-foreground uppercase text-[10px] tracking-wider">
+            <thead className="bg-muted/95 backdrop-blur-md text-muted-foreground uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-border/60">
               <tr>
-                <th className="px-4 py-3">Route & Method</th>
-                <th className="px-4 py-3 text-right">Calls</th>
-                <th className="px-4 py-3 text-right">Error Rate</th>
-                <th className="px-4 py-3 text-right">Avg (ms)</th>
-                <th className="px-4 py-3 text-right">P50 (ms)</th>
-                <th className="px-4 py-3 text-right">P95 (ms)</th>
-                <th className="px-4 py-3 text-right">P99 (ms)</th>
-                <th className="px-4 py-3 text-right">Last Call</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Route & Method</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Calls</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Error Rate</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Avg (ms)</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">P50 (ms)</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">P95 (ms)</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">P99 (ms)</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Last Call</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">

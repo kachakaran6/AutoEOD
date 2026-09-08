@@ -58,7 +58,7 @@ export default function UserManagementPage() {
   );
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -99,16 +99,16 @@ export default function UserManagementPage() {
           Showing <strong className="text-foreground">{filteredUsers.length}</strong> of {users.length} registered users
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[600px] relative">
           <table className="w-full text-xs font-mono text-left divide-y divide-border/60">
-            <thead className="bg-muted/30 text-muted-foreground uppercase text-[10px] tracking-wider font-sans">
+            <thead className="bg-muted/95 backdrop-blur-md text-muted-foreground uppercase text-[10px] tracking-wider font-sans sticky top-0 z-10 border-b border-border/60">
               <tr>
-                <th className="px-4 py-3">User & Email</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3 text-right">Reports</th>
-                <th className="px-4 py-3 text-right">Activities</th>
-                <th className="px-4 py-3 text-right">Joined</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">User & Email</th>
+                <th className="px-4 py-3 bg-muted/95 backdrop-blur-md">Role</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Reports</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Activities</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Joined</th>
+                <th className="px-4 py-3 text-right bg-muted/95 backdrop-blur-md">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">

@@ -47,7 +47,7 @@ export default function ExtensionReleasePage() {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-8 w-full animate-in fade-in duration-300">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">

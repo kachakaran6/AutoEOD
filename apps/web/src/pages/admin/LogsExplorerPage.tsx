@@ -93,7 +93,7 @@ export default function LogsExplorerPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -208,7 +208,7 @@ export default function LogsExplorerPage() {
           <span className="font-mono text-[11px]">Page {page} of {totalPages}</span>
         </div>
 
-        <div className="divide-y divide-border/40 font-mono text-xs">
+        <div className="divide-y divide-border/40 font-mono text-xs max-h-[650px] overflow-y-auto">
           {loading && logs.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-2">
               <RefreshCw className="h-6 w-6 animate-spin text-primary" />
